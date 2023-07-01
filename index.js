@@ -19,9 +19,8 @@ const dbConfig = {
   },
 };
 
-
-
 // Configuración de CORS y body parser
+
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -30,100 +29,79 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 app.get('/api/Clientes', async (req, res) => {
   try {
-    const pool = await sql.connect(dbConfig);
-    // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query('SELECT * FROM Clientes');
-    // El response va contener todos los datos que se obtuvieron de la BD
-    res.send(result.recordset);
+      const pool = await sql.connect(dbConfig);
+      // Realizamos la consulta para obtener todos los clientes
+      const result = await pool.request().query('SELECT * FROM Clientes');
+      // El response va contener todos los datos que se obtuvieron de la BD
+      res.send(result.recordset);
   } catch (error) {
-    // Caso contrario nos manda el error del porque no se puede
-    console.error('Error al obtener elementos:', error);
-    res.status(500).send('Error del servidor');
+      // Caso contrario nos manda el error del porque no se puede
+      console.error('Error al obtener elementos:', error);
+      res.status(500).send('Error del servidor');
   }
 });
 
 app.post('/api/CrearCliente', (req, res) => {
-  const { nombreCliente, telefonoCliente } = req.body;
+  const { nombreCliente, telefonoCliente, correoCliente, direccionCliente } = req.body;
 
   const connection = new sql.ConnectionPool(dbConfig);
 
   connection.connect((err) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).json({ mensaje: 'Error interno del servidor 1' });
-    }
-    const insertQuery = `INSERT INTO Clientes (NombreCliente, TelefonoCliente) VALUES ('${nombreCliente}', '${telefonoCliente}')`;
-
-    connection.request().query(insertQuery, (err, result) => {
       if (err) {
-        console.log(err);
-        connection.close();
-        return res.status(500).json({ mensaje: 'Error interno del servidor 3' });
+          console.log(err);
+          return res.status(500).json({ mensaje: 'Error interno del servidor 1 - Conexion la BD' });
       }
+      const insertQuery = `INSERT INTO Clientes (NombreCliente, TelefonoCliente, CorreoCliente, DireccionCliente) VALUES ('${nombreCliente}', '${telefonoCliente}', '${correoCliente}', '${direccionCliente}')`;
 
-      connection.close();
-      res.status(201).json({ mensaje: 'Cliente registrado correctamente' });
-      console.log(`Cliente: ${nombreCliente}, creado correctamente`)
+      connection.request().query(insertQuery, (err, result) => {
+          if (err) {
+              console.log(err);
+              connection.close();
+              return res.status(500).json({ mensaje: 'Error interno del servidor 3' });
+          }
 
-    });
+          connection.close();
+          res.status(201).json({ mensaje: 'Cliente registrado correctamente' });
+          console.log(`Cliente: ${nombreCliente}, creado correctamente`)
+
+      });
   });
 });
 
 
-// ENDPOINT ACTUALIZAR CLIENTE
 app.put("/api/ActualizarClientes/:id", async (req, res) => {
   try {
-    const { id } = req.params; // Obtener el ID del cliente de los parámetros de la solicitud
-    const { nombreCliente, telefonoCliente } = req.body; // Obtener los nuevos valores del cliente de la solicitud
+      const { id } = req.params; // Obtener el ID del cliente de los parámetros de la solicitud
+      const { nombreCliente, telefonoCliente } = req.body; // Obtener los nuevos valores del cliente de la solicitud
 
-    const pool = await sql.connect(dbConfig);
+      const pool = await sql.connect(dbConfig);
 
-    // Obtener los datos actuales del cliente desde la base de datos
-    const queryCliente = "SELECT * FROM Clientes WHERE IdCliente = @IdCliente";
-    const resultCliente = await pool
-      .request()
-      .input("IdCliente", id)
-      .query(queryCliente);
-    const clienteActual = resultCliente.recordset[0];
+      // Obtener los datos actuales del cliente desde la base de datos
+      const queryCliente = "SELECT * FROM Clientes WHERE IdCliente = @IdCliente";
+      const resultCliente = await pool
+          .request()
+          .input("IdCliente", id)
+          .query(queryCliente);
+      const clienteActual = resultCliente.recordset[0];
 
-    // Verificar si los campos están vacíos y usar los valores actuales en su lugar
-    const nombreActual = nombreCliente || clienteActual.NombreCliente;
-    const telefonoActual = telefonoCliente || clienteActual.TelefonoCliente;
+      // Verificar si los campos están vacíos y usar los valores actuales en su lugar
+      const nombreActual = nombreCliente || clienteActual.NombreCliente;
+      const telefonoActual = telefonoCliente || clienteActual.TelefonoCliente;
 
-    // Actualizar el cliente en la base de datos
-    const queryActualizar =
-      "UPDATE Clientes SET NombreCliente = @NombreCliente, TelefonoCliente = @TelefonoCliente WHERE IdCliente = @IdCliente";
-    const resultActualizar = await pool
-      .request()
-      .input("IdCliente", id)
-      .input("NombreCliente", nombreActual)
-      .input("TelefonoCliente", telefonoActual)
-      .query(queryActualizar);
+      // Actualizar el cliente en la base de datos
+      const queryActualizar =
+          "UPDATE Clientes SET NombreCliente = @NombreCliente, TelefonoCliente = @TelefonoCliente WHERE IdCliente = @IdCliente";
+      const resultActualizar = await pool
+          .request()
+          .input("IdCliente", id)
+          .input("NombreCliente", nombreActual)
+          .input("TelefonoCliente", telefonoActual)
+          .query(queryActualizar);
 
-    res.json({ message: "Cliente actualizado correctamente" });
+      res.json({ message: "Cliente actualizado correctamente" });
   } catch (error) {
-    console.error("Error al actualizar el cliente:", error);
-    res.status(500).send("Error del servidor");
-  }
-});
-
-
-
-app.delete('/api/EliminarCliente/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const pool = await sql.connect(dbConfig);
-    const result = await pool
-      .request()
-      .input('Id', sql.Int, id)
-      .query('DELETE FROM Clientes WHERE IdCliente = @Id');
-
-    res.sendStatus(200);
-    console.log(`Cliente con ID: ${id}, ELIMINADO`)
-  } catch (error) {
-    console.error('Error al eliminar Cliente:', error);
-    res.status(500).send('Error del servidor');
+      console.error("Error al actualizar el cliente:", error);
+      res.status(500).send("Error del servidor");
   }
 });
 
@@ -133,26 +111,27 @@ app.post('/api/DeleteCliente', (req, res) => {
   const connection = new sql.ConnectionPool(dbConfig);
 
   connection.connect((err) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).json({ mensaje: 'Error al conectarse a la BD' });
-    }
-    const insertQuery = `DELETE FROM Clientes WHERE IdCliente = ${id}`;
-
-    connection.request().query(insertQuery, (err, result) => {
       if (err) {
-        console.log(err);
-        connection.close();
-        return res.status(500).json({ mensaje: 'Error en el query' });
+          console.log(err);
+          return res.status(500).json({ mensaje: 'Error al conectarse a la BD' });
       }
+      const insertQuery = `DELETE FROM Clientes WHERE IdCliente = ${id}`;
 
-      connection.close();
-      res.status(201).json({ mensaje: 'Cliente eliminado correctamente' });
-      console.log(`Cliente con id ${id}, eliminado correctamente`)
+      connection.request().query(insertQuery, (err, result) => {
+          if (err) {
+              console.log(err);
+              connection.close();
+              return res.status(500).json({ mensaje: 'Error en el query' });
+          }
 
-    });
+          connection.close();
+          res.status(201).json({ mensaje: 'Cliente eliminado correctamente' });
+          console.log(`Cliente con id ${id}, eliminado correctamente`)
+
+      });
   });
 });
+
 
 // ENDPOINTS PROVEEDORES
 
@@ -169,6 +148,76 @@ app.get('/api/Proveedores', async (req, res) => {
     res.status(500).send('Error del servidor');
   }
 });
+
+app.post('/api/CrearProveedor', (req, res) => {
+  const { nombreProveedor, telefonoProveedor, direccionProveedor, correoProveedor, pais } = req.body;
+
+  const connection = new sql.ConnectionPool(dbConfig);
+
+  connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ mensaje: 'Error interno del servidor 1' });
+    }
+    const insertQuery = `INSERT INTO Proveedores (NombreProveedor, TelefonoProveedor, DireccionProveedor, CorreoProveedor, Pais) VALUES ('${nombreProveedor}', '${telefonoProveedor}', '${direccionProveedor}', '${correoProveedor}', '${pais}')`;
+
+    connection.request().query(insertQuery, (err, result) => {
+      if (err) {
+        console.log(err);
+        connection.close();
+        return res.status(500).json({ mensaje: 'Error interno del servidor 3 - En el query' });
+      }
+
+      connection.close();
+      res.status(201).json({ mensaje: 'Proveedor creado correctamente' });
+      console.log(`Cliente: ${nombreProveedor}, creado correctamente`)
+
+    });
+  });
+});
+
+app.put("/api/ActualizarProveedor/:id", async (req, res) => {
+  try {
+      const { id } = req.params; // Obtener el ID del cliente de los parámetros de la solicitud
+      const { nombreProveedor, telefonoProveedor, direccionProveedor, correoProveedor, pais } = req.body; // Obtener los nuevos valores del cliente de la solicitud
+
+      const pool = await sql.connect(dbConfig);
+
+      // Obtener los datos actuales del cliente desde la base de datos
+      const queryProveedor = "SELECT * FROM Proveedores WHERE IdProveedor = @IdProveedor";
+      const resultProveedor = await pool
+          .request()
+          .input("IdProveedor", id)
+          .query(queryProveedor);
+      const proveedorActual = resultProveedor.recordset[0];
+
+      // Verificar si los campos están vacíos y usar los valores actuales en su lugar
+      const nombreActual = nombreProveedor || proveedorActual.NombreCliente;
+      const telefonoActual = telefonoProveedor || proveedorActual.TelefonoCliente;
+      const direccionActual = direccionProveedor || proveedorActual.DireccionProveedor;
+      const correoActual = correoProveedor || proveedorActual.CorreoProveedor;
+      const paisActual = pais || proveedorActual.Pais;
+
+      // Actualizar el cliente en la base de datos
+      const queryActualizar =
+          "UPDATE Proveedores SET NombreProveedor = @NombreProveedor, TelefonoProveedor = @TelefonoProveedor, DireccionProveedor = @DireccionProveedor, CorreoProveedor = @CorreoProveedor, Pais = @Pais WHERE IdProveedor = @IdProveedor";
+      const resultActualizar = await pool
+          .request()
+          .input("IdProveedor", id)
+          .input("NombreProveedor", nombreActual)
+          .input("TelefonoProveedor", telefonoActual)
+          .input("DireccionProveedor", direccionActual)
+          .input("CorreoProveedor", correoActual)
+          .input("Pais", paisActual)
+          .query(queryActualizar);
+
+      res.json({ message: "Proveedor actualizado correctamente" });
+  } catch (error) {
+      console.error("Error al actualizar el Proveedor:", error);
+      res.status(500).send("Error del servidor");
+  }
+});
+
 
 // ENDPOINTS PRODUCTOS
 
@@ -231,6 +280,10 @@ app.post('/api/GenerarEntrada', (req, res) => {
       return res.status(500).json({ mensaje: 'No se pudo conectar a la BD' });
     }
 
+    if (!idProduct || !idProveedor || !cantidad) {
+      return res.status(400).json({ error: 'Todos los campos son necesarios' });
+    }
+
     // Insertar nuevo CLIENTE en la base de datos
     const insertQuery = `
     DECLARE @IdProducto INT;
@@ -247,14 +300,13 @@ app.post('/api/GenerarEntrada', (req, res) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res.status(500).json({ mensaje: 'Error interno del servidor 3' });
+        return res.status(500).json({ mensaje: 'Error en el query' });
       }
 
       connection.close();
-      res.status(201).json({ mensaje: 'Entrada Registrada Correctamente' });
+      res.status(201).json({ mensaje: 'Compra Registrada Correctamente' });
 
     });
-
   });
 });
 
@@ -329,6 +381,143 @@ app.get('/api/Salidas', async (req, res) => {
     res.status(500).send('Error del servidor');
   }
 });
+
+app.get('/api/CantidadProductos', async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+    // Realizamos la consulta para obtener todos los clientes
+    const result = await pool.request().query('SELECT COUNT(*) AS TotalProductos FROM Productos;');
+    // El response va contener todos los datos que se obtuvieron de la BD
+    res.send(result.recordset);
+  } catch (error) {
+    // Caso contrario nos manda el error del porque no se puede
+    console.error('Error al obtener total de productos:', error);
+    res.status(500).send('Error del servidor');
+  }
+});
+
+app.get('/api/CantidadClientes', async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+    // Realizamos la consulta para obtener todos los clientes
+    const result = await pool.request().query('SELECT COUNT(*) AS TotalClientes FROM Clientes;');
+    // El response va contener todos los datos que se obtuvieron de la BD
+    res.send(result.recordset);
+  } catch (error) {
+    // Caso contrario nos manda el error del porque no se puede
+    console.error('Error al obtener total de Clientes:', error);
+    res.status(500).send('Error del servidor');
+  }
+});
+
+app.get('/api/CantidadVentasRealizadas', async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+    // Realizamos la consulta para obtener todos los clientes
+    const result = await pool.request().query('SELECT COUNT(*) AS TotalSalidas FROM Salidas;');
+    // El response va contener todos los datos que se obtuvieron de la BD
+    res.send(result.recordset);
+  } catch (error) {
+    // Caso contrario nos manda el error del porque no se puede
+    console.error('Error al obtener total de Ventas:', error);
+    res.status(500).send('Error del servidor');
+  }
+});
+
+app.post("/api/reporte-ventas", async (req, res) => {
+  console.log("Solicitud de reporte de ventas recibida");
+  const { fechaInicio, fechaFin } = req.body;
+
+  console.log("Fecha de inicio recibida:", fechaInicio);
+  console.log("Fecha de fin recibida:", fechaFin);
+
+  try {
+    // Crea una nueva instancia de la conexión a la base de datos
+    await sql.connect(dbConfig);
+
+    // Obtener las fechas inicial y final del rango deseado desde el frontend
+    const fechaInicial = new Date(fechaInicio);
+    const fechaFinal = new Date(fechaFin);
+
+    // Establecer la hora para la fecha final como 23:59:59 para incluir todo el día
+    fechaFinal.setHours(23, 59, 59);
+
+    // Consulta SQL para obtener los registros en el rango de fechas
+    const query = `
+      SELECT IdSalida, IdProducto, IdCliente, Cantidad, FechaSalida
+      FROM Salidas
+      WHERE FechaSalida >= @fechaInicial AND FechaSalida <= @fechaFinal;
+    `;
+
+    // Crear un objeto de solicitud
+    const request = new sql.Request();
+
+    // Establecer los valores de los parámetros utilizando el método input() y value()
+    request.input("fechaInicial", sql.DateTime, fechaInicial);
+    request.input("fechaFinal", sql.DateTime, fechaFinal);
+
+    // Ejecutar la consulta utilizando el objeto de solicitud
+    const result = await request.query(query);
+    res.json(result.recordset);
+  } catch (error) {
+    // Maneja el error en caso de que ocurra
+    console.error(error);
+    res.status(500).json({ error: "Ocurrió un error en el servidor" });
+  } finally {
+    // Cierra la conexión a la base de datos dentro del bloque finally
+    if (sql.connected) {
+      sql.close();
+    }
+  }
+});
+
+app.post("/api/reporte-compras", async (req, res) => {
+  console.log("Solicitud de reporte de compra recibida");
+  const { fechaInicio, fechaFin } = req.body;
+
+  console.log("Fecha de inicio recibida:", fechaInicio);
+  console.log("Fecha de fin recibida:", fechaFin);
+
+  try {
+    // Crea una nueva instancia de la conexión a la base de datos
+    await sql.connect(dbConfig);
+
+    // Obtener las fechas inicial y final del rango deseado desde el frontend
+    const fechaInicial = new Date(fechaInicio);
+    const fechaFinal = new Date(fechaFin);
+
+    // Establecer la hora para la fecha final como 23:59:59 para incluir todo el día
+    fechaFinal.setHours(23, 59, 59);
+
+    // Consulta SQL para obtener los registros en el rango de fechas
+    const query = `
+      SELECT IdEntrada, IdProducto, IdProveedor, Cantidad, FechaEntrada
+      FROM Entradas
+      WHERE FechaEntrada >= @fechaInicial AND FechaEntrada <= @fechaFinal;
+    `;
+
+    // Crear un objeto de solicitud
+    const request = new sql.Request();
+
+    // Establecer los valores de los parámetros utilizando el método input() y value()
+    request.input("fechaInicial", sql.DateTime, fechaInicial);
+    request.input("fechaFinal", sql.DateTime, fechaFinal);
+
+    // Ejecutar la consulta utilizando el objeto de solicitud
+    const result = await request.query(query);
+    res.json(result.recordset);
+  } catch (error) {
+    // Maneja el error en caso de que ocurra
+    console.error(error);
+    res.status(500).json({ error: "Ocurrió un error en el servidor" });
+  } finally {
+    // Cierra la conexión a la base de datos dentro del bloque finally
+    if (sql.connected) {
+      sql.close();
+    }
+  }
+});
+
 
 // Sesion Usuario
 
@@ -413,48 +602,6 @@ app.post('/registro', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Servidor escuchando en el puerto ${port}`);
-});
-
-app.get('/api/CantidadProductos', async (req, res) => {
-  try {
-    const pool = await sql.connect(dbConfig);
-    // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query('SELECT COUNT(*) AS TotalProductos FROM Productos;');
-    // El response va contener todos los datos que se obtuvieron de la BD
-    res.send(result.recordset);
-  } catch (error) {
-    // Caso contrario nos manda el error del porque no se puede
-    console.error('Error al obtener total de productos:', error);
-    res.status(500).send('Error del servidor');
-  }
-});
-
-app.get('/api/CantidadClientes', async (req, res) => {
-  try {
-    const pool = await sql.connect(dbConfig);
-    // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query('SELECT COUNT(*) AS TotalClientes FROM Clientes;');
-    // El response va contener todos los datos que se obtuvieron de la BD
-    res.send(result.recordset);
-  } catch (error) {
-    // Caso contrario nos manda el error del porque no se puede
-    console.error('Error al obtener total de Clientes:', error);
-    res.status(500).send('Error del servidor');
-  }
-});
-
-app.get('/api/CantidadVentasRealizadas', async (req, res) => {
-  try {
-    const pool = await sql.connect(dbConfig);
-    // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query('SELECT COUNT(*) AS TotalSalidas FROM Salidas;');
-    // El response va contener todos los datos que se obtuvieron de la BD
-    res.send(result.recordset);
-  } catch (error) {
-    // Caso contrario nos manda el error del porque no se puede
-    console.error('Error al obtener total de Ventas:', error);
-    res.status(500).send('Error del servidor');
-  }
+  console.log(`Servidor escuchando en http://localhost:${port}`);
 });
 
