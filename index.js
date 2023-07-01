@@ -218,6 +218,34 @@ app.put("/api/ActualizarProveedor/:id", async (req, res) => {
   }
 });
 
+app.delete('/api/DeleteProveedor/:id', (req, res) => {
+
+  const { id } = req.params;
+
+  const connection = new sql.ConnectionPool(dbConfig);
+
+  connection.connect((err) => {
+      if (err) {
+          console.log(err);
+          return res.status(500).json({ mensaje: 'Error al conectarse a la BD' });
+      }
+      const insertQuery = `DELETE FROM Proveedores WHERE IdProveedor = ${id}`;
+
+      connection.request().query(insertQuery, (err, result) => {
+          if (err) {
+              console.log(err);
+              connection.close();
+              return res.status(500).json({ mensaje: 'Error en el query' });
+          }
+
+          connection.close();
+          res.status(201).json({ mensaje: 'Proveedor eliminado correctamente' });
+          console.log(`Proveedor con id ${id}, eliminado correctamente`)
+
+      });
+  });
+});
+
 
 // ENDPOINTS PRODUCTOS
 
