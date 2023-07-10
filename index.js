@@ -26,15 +26,15 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // ENDPOINTS CLIENTES
 app.get('/api/Clientes', async (req, res) => {
   try {
-      const pool = await sql.connect(dbConfig);
-      // Realizamos la consulta para obtener todos los clientes
-      const result = await pool.request().query('SELECT * FROM Clientes');
-      // El response va contener todos los datos que se obtuvieron de la BD
-      res.send(result.recordset);
+    const pool = await sql.connect(dbConfig);
+    // Realizamos la consulta para obtener todos los clientes
+    const result = await pool.request().query('SELECT * FROM Clientes');
+    // El response va contener todos los datos que se obtuvieron de la BD
+    res.send(result.recordset);
   } catch (error) {
-      // Caso contrario nos manda el error del porque no se puede
-      console.error('Error al obtener elementos:', error);
-      res.status(500).send('Error del servidor');
+    // Caso contrario nos manda el error del porque no se puede
+    console.error('Error al obtener elementos:', error);
+    res.status(500).send('Error del servidor');
   }
 });
 
@@ -44,60 +44,60 @@ app.post('/api/CrearCliente', (req, res) => {
   const connection = new sql.ConnectionPool(dbConfig);
 
   connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ mensaje: 'Error interno del servidor 1 - Conexion la BD' });
+    }
+    const insertQuery = `INSERT INTO Clientes (NombreCliente, TelefonoCliente, CorreoCliente, DireccionCliente) VALUES ('${nombreCliente}', '${telefonoCliente}', '${correoCliente}', '${direccionCliente}')`;
+
+    connection.request().query(insertQuery, (err, result) => {
       if (err) {
-          console.log(err);
-          return res.status(500).json({ mensaje: 'Error interno del servidor 1 - Conexion la BD' });
+        console.log(err);
+        connection.close();
+        return res.status(500).json({ mensaje: 'Error interno del servidor 3' });
       }
-      const insertQuery = `INSERT INTO Clientes (NombreCliente, TelefonoCliente, CorreoCliente, DireccionCliente) VALUES ('${nombreCliente}', '${telefonoCliente}', '${correoCliente}', '${direccionCliente}')`;
 
-      connection.request().query(insertQuery, (err, result) => {
-          if (err) {
-              console.log(err);
-              connection.close();
-              return res.status(500).json({ mensaje: 'Error interno del servidor 3' });
-          }
+      connection.close();
+      res.status(201).json({ mensaje: 'Cliente registrado correctamente' });
+      console.log(`Cliente: ${nombreCliente}, creado correctamente`)
 
-          connection.close();
-          res.status(201).json({ mensaje: 'Cliente registrado correctamente' });
-          console.log(`Cliente: ${nombreCliente}, creado correctamente`)
-
-      });
+    });
   });
 });
 
 app.put("/api/ActualizarClientes/:id", async (req, res) => {
   try {
-      const { id } = req.params; // Obtener el ID del cliente de los parámetros de la solicitud
-      const { nombreCliente, telefonoCliente } = req.body; // Obtener los nuevos valores del cliente de la solicitud
+    const { id } = req.params; // Obtener el ID del cliente de los parámetros de la solicitud
+    const { nombreCliente, telefonoCliente } = req.body; // Obtener los nuevos valores del cliente de la solicitud
 
-      const pool = await sql.connect(dbConfig);
+    const pool = await sql.connect(dbConfig);
 
-      // Obtener los datos actuales del cliente desde la base de datos
-      const queryCliente = "SELECT * FROM Clientes WHERE IdCliente = @IdCliente";
-      const resultCliente = await pool
-          .request()
-          .input("IdCliente", id)
-          .query(queryCliente);
-      const clienteActual = resultCliente.recordset[0];
+    // Obtener los datos actuales del cliente desde la base de datos
+    const queryCliente = "SELECT * FROM Clientes WHERE IdCliente = @IdCliente";
+    const resultCliente = await pool
+      .request()
+      .input("IdCliente", id)
+      .query(queryCliente);
+    const clienteActual = resultCliente.recordset[0];
 
-      // Verificar si los campos están vacíos y usar los valores actuales en su lugar
-      const nombreActual = nombreCliente || clienteActual.NombreCliente;
-      const telefonoActual = telefonoCliente || clienteActual.TelefonoCliente;
+    // Verificar si los campos están vacíos y usar los valores actuales en su lugar
+    const nombreActual = nombreCliente || clienteActual.NombreCliente;
+    const telefonoActual = telefonoCliente || clienteActual.TelefonoCliente;
 
-      // Actualizar el cliente en la base de datos
-      const queryActualizar =
-          "UPDATE Clientes SET NombreCliente = @NombreCliente, TelefonoCliente = @TelefonoCliente WHERE IdCliente = @IdCliente";
-      const resultActualizar = await pool
-          .request()
-          .input("IdCliente", id)
-          .input("NombreCliente", nombreActual)
-          .input("TelefonoCliente", telefonoActual)
-          .query(queryActualizar);
+    // Actualizar el cliente en la base de datos
+    const queryActualizar =
+      "UPDATE Clientes SET NombreCliente = @NombreCliente, TelefonoCliente = @TelefonoCliente WHERE IdCliente = @IdCliente";
+    const resultActualizar = await pool
+      .request()
+      .input("IdCliente", id)
+      .input("NombreCliente", nombreActual)
+      .input("TelefonoCliente", telefonoActual)
+      .query(queryActualizar);
 
-      res.json({ message: "Cliente actualizado correctamente" });
+    res.json({ message: "Cliente actualizado correctamente" });
   } catch (error) {
-      console.error("Error al actualizar el cliente:", error);
-      res.status(500).send("Error del servidor");
+    console.error("Error al actualizar el cliente:", error);
+    res.status(500).send("Error del servidor");
   }
 });
 
@@ -107,27 +107,26 @@ app.post('/api/DeleteCliente', (req, res) => {
   const connection = new sql.ConnectionPool(dbConfig);
 
   connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ mensaje: 'Error al conectarse a la BD' });
+    }
+    const insertQuery = `DELETE FROM Clientes WHERE IdCliente = ${id}`;
+
+    connection.request().query(insertQuery, (err, result) => {
       if (err) {
-          console.log(err);
-          return res.status(500).json({ mensaje: 'Error al conectarse a la BD' });
+        console.log(err);
+        connection.close();
+        return res.status(500).json({ mensaje: 'Error en el query' });
       }
-      const insertQuery = `DELETE FROM Clientes WHERE IdCliente = ${id}`;
 
-      connection.request().query(insertQuery, (err, result) => {
-          if (err) {
-              console.log(err);
-              connection.close();
-              return res.status(500).json({ mensaje: 'Error en el query' });
-          }
+      connection.close();
+      res.status(201).json({ mensaje: 'Cliente eliminado correctamente' });
+      console.log(`Cliente con id ${id}, eliminado correctamente`)
 
-          connection.close();
-          res.status(201).json({ mensaje: 'Cliente eliminado correctamente' });
-          console.log(`Cliente con id ${id}, eliminado correctamente`)
-
-      });
+    });
   });
 });
-
 
 // ENDPOINTS PROVEEDORES
 app.get('/api/Proveedores', async (req, res) => {
@@ -173,43 +172,43 @@ app.post('/api/CrearProveedor', (req, res) => {
 
 app.put("/api/ActualizarProveedor/:id", async (req, res) => {
   try {
-      const { id } = req.params; // Obtener el ID del cliente de los parámetros de la solicitud
-      const { nombreProveedor, telefonoProveedor, direccionProveedor, correoProveedor, pais } = req.body; // Obtener los nuevos valores del cliente de la solicitud
+    const { id } = req.params; // Obtener el ID del cliente de los parámetros de la solicitud
+    const { nombreProveedor, telefonoProveedor, direccionProveedor, correoProveedor, pais } = req.body; // Obtener los nuevos valores del cliente de la solicitud
 
-      const pool = await sql.connect(dbConfig);
+    const pool = await sql.connect(dbConfig);
 
-      // Obtener los datos actuales del cliente desde la base de datos
-      const queryProveedor = "SELECT * FROM Proveedores WHERE IdProveedor = @IdProveedor";
-      const resultProveedor = await pool
-          .request()
-          .input("IdProveedor", id)
-          .query(queryProveedor);
-      const proveedorActual = resultProveedor.recordset[0];
+    // Obtener los datos actuales del cliente desde la base de datos
+    const queryProveedor = "SELECT * FROM Proveedores WHERE IdProveedor = @IdProveedor";
+    const resultProveedor = await pool
+      .request()
+      .input("IdProveedor", id)
+      .query(queryProveedor);
+    const proveedorActual = resultProveedor.recordset[0];
 
-      // Verificar si los campos están vacíos y usar los valores actuales en su lugar
-      const nombreActual = nombreProveedor || proveedorActual.NombreCliente;
-      const telefonoActual = telefonoProveedor || proveedorActual.TelefonoCliente;
-      const direccionActual = direccionProveedor || proveedorActual.DireccionProveedor;
-      const correoActual = correoProveedor || proveedorActual.CorreoProveedor;
-      const paisActual = pais || proveedorActual.Pais;
+    // Verificar si los campos están vacíos y usar los valores actuales en su lugar
+    const nombreActual = nombreProveedor || proveedorActual.NombreCliente;
+    const telefonoActual = telefonoProveedor || proveedorActual.TelefonoCliente;
+    const direccionActual = direccionProveedor || proveedorActual.DireccionProveedor;
+    const correoActual = correoProveedor || proveedorActual.CorreoProveedor;
+    const paisActual = pais || proveedorActual.Pais;
 
-      // Actualizar el cliente en la base de datos
-      const queryActualizar =
-          "UPDATE Proveedores SET NombreProveedor = @NombreProveedor, TelefonoProveedor = @TelefonoProveedor, DireccionProveedor = @DireccionProveedor, CorreoProveedor = @CorreoProveedor, Pais = @Pais WHERE IdProveedor = @IdProveedor";
-      const resultActualizar = await pool
-          .request()
-          .input("IdProveedor", id)
-          .input("NombreProveedor", nombreActual)
-          .input("TelefonoProveedor", telefonoActual)
-          .input("DireccionProveedor", direccionActual)
-          .input("CorreoProveedor", correoActual)
-          .input("Pais", paisActual)
-          .query(queryActualizar);
+    // Actualizar el cliente en la base de datos
+    const queryActualizar =
+      "UPDATE Proveedores SET NombreProveedor = @NombreProveedor, TelefonoProveedor = @TelefonoProveedor, DireccionProveedor = @DireccionProveedor, CorreoProveedor = @CorreoProveedor, Pais = @Pais WHERE IdProveedor = @IdProveedor";
+    const resultActualizar = await pool
+      .request()
+      .input("IdProveedor", id)
+      .input("NombreProveedor", nombreActual)
+      .input("TelefonoProveedor", telefonoActual)
+      .input("DireccionProveedor", direccionActual)
+      .input("CorreoProveedor", correoActual)
+      .input("Pais", paisActual)
+      .query(queryActualizar);
 
-      res.json({ message: "Proveedor actualizado correctamente" });
+    res.json({ message: "Proveedor actualizado correctamente" });
   } catch (error) {
-      console.error("Error al actualizar el Proveedor:", error);
-      res.status(500).send("Error del servidor");
+    console.error("Error al actualizar el Proveedor:", error);
+    res.status(500).send("Error del servidor");
   }
 });
 
@@ -220,24 +219,24 @@ app.delete('/api/DeleteProveedor/:id', (req, res) => {
   const connection = new sql.ConnectionPool(dbConfig);
 
   connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ mensaje: 'Error al conectarse a la BD' });
+    }
+    const insertQuery = `DELETE FROM Proveedores WHERE IdProveedor = ${id}`;
+
+    connection.request().query(insertQuery, (err, result) => {
       if (err) {
-          console.log(err);
-          return res.status(500).json({ mensaje: 'Error al conectarse a la BD' });
+        console.log(err);
+        connection.close();
+        return res.status(500).json({ mensaje: 'Error en el query' });
       }
-      const insertQuery = `DELETE FROM Proveedores WHERE IdProveedor = ${id}`;
 
-      connection.request().query(insertQuery, (err, result) => {
-          if (err) {
-              console.log(err);
-              connection.close();
-              return res.status(500).json({ mensaje: 'Error en el query' });
-          }
+      connection.close();
+      res.status(201).json({ mensaje: 'Proveedor eliminado correctamente' });
+      console.log(`Proveedor con id ${id}, eliminado correctamente`)
 
-          connection.close();
-          res.status(201).json({ mensaje: 'Proveedor eliminado correctamente' });
-          console.log(`Proveedor con id ${id}, eliminado correctamente`)
-
-      });
+    });
   });
 });
 
@@ -287,9 +286,37 @@ app.post('/api/CrearProducto', (req, res) => {
   });
 });
 
+app.get('/api/ProductoPrecio', async (req, res) => {
+  const nombreProducto = req.query.nombre;
+
+  try {
+    // Establecer la conexión a la base de datos
+    await sql.connect(dbConfig);
+
+    // Ejecutar la consulta para obtener el precio del producto
+    const result = await sql.query(
+      `SELECT PrecioCompra FROM Productos WHERE Nombre = '${nombreProducto}'`
+    );
+
+    // Verificar si se encontró el producto y devolver el precio
+    if (result.recordset.length > 0) {
+      const precio = result.recordset[0].PrecioCompra;
+      res.json({ precio });
+    } else {
+      res.status(404).json({ mensaje: 'Producto no encontrado' });
+    }
+  } catch (error) {
+    console.error('Error en la consulta:', error);
+    res.status(500).json({ mensaje: 'Error en el servidor' });
+  } finally {
+    // Cerrar la conexión a la base de datos
+    sql.close();
+  }
+});
+
 // ENTRADAS - SALIDAS
 app.post('/api/GenerarEntrada', (req, res) => {
-  const { idProduct, idProveedor, cantidad } = req.body;
+  const { nombreProducto, nombreProveedor, cantidad, totalEgreso } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
@@ -301,21 +328,23 @@ app.post('/api/GenerarEntrada', (req, res) => {
       return res.status(500).json({ mensaje: 'No se pudo conectar a la BD' });
     }
 
-    if (!idProduct || !idProveedor || !cantidad) {
-      return res.status(400).json({ error: 'Todos los campos son necesarios' });
+    if (!nombreProducto || !nombreProveedor || !cantidad || !totalEgreso) {
+      return res.status(400).json({ mensaje: 'Todos los campos son necesarios' });
     }
 
     // Insertar nuevo CLIENTE en la base de datos
     const insertQuery = `
-    DECLARE @IdProducto INT;
-    DECLARE @IdProveedor INT;
+    DECLARE @NombreProducto VARCHAR(100);
+    DECLARE @NombreProveedor VARCHAR(100);
     DECLARE @Cantidad INT;
-    
-    SET @IdProducto = ${idProduct}; 
-    SET @IdProveedor = ${idProveedor}; 
-    SET @Cantidad = ${cantidad}; 
-    
-    EXEC RegistrarEntrada @IdProducto, @IdProveedor, @Cantidad;`;
+    DECLARE @TotalDineroGastado INT;
+
+    SET @NombreProducto = '${nombreProducto}'; 
+    SET @NombreProveedor = '${nombreProveedor}'; 
+    SET @Cantidad = ${cantidad};
+    SET @TotalDineroGastado = ${totalEgreso}; 
+
+    EXEC RegistrarEntrada @NombreProducto, @NombreProveedor, @Cantidad, @TotalDineroGastado;`;
 
     connection.request().query(insertQuery, (err, result) => {
       if (err) {
@@ -539,6 +568,7 @@ app.post("/api/reporte-compras", async (req, res) => {
     }
   }
 });
+
 
 // SESION DE USUARIO
 
