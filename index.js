@@ -7,7 +7,6 @@ const app = express();
 const port = 5000;
 
 // Configuración de conexión a SQL Server
-
 const dbConfig = {
   server: 'localhost',
   database: 'INVENT',
@@ -20,13 +19,11 @@ const dbConfig = {
 };
 
 // Configuración de CORS y body parser
-
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
 // ENDPOINTS CLIENTES
-
 app.get('/api/Clientes', async (req, res) => {
   try {
       const pool = await sql.connect(dbConfig);
@@ -67,7 +64,6 @@ app.post('/api/CrearCliente', (req, res) => {
       });
   });
 });
-
 
 app.put("/api/ActualizarClientes/:id", async (req, res) => {
   try {
@@ -134,7 +130,6 @@ app.post('/api/DeleteCliente', (req, res) => {
 
 
 // ENDPOINTS PROVEEDORES
-
 app.get('/api/Proveedores', async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
@@ -246,9 +241,7 @@ app.delete('/api/DeleteProveedor/:id', (req, res) => {
   });
 });
 
-
 // ENDPOINTS PRODUCTOS
-
 app.get('/api/Productos', async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
@@ -294,7 +287,7 @@ app.post('/api/CrearProducto', (req, res) => {
   });
 });
 
-// ENTRADAS / SALIDAS
+// ENTRADAS - SALIDAS
 app.post('/api/GenerarEntrada', (req, res) => {
   const { idProduct, idProveedor, cantidad } = req.body;
 
@@ -410,6 +403,7 @@ app.get('/api/Salidas', async (req, res) => {
   }
 });
 
+// REPORTES 
 app.get('/api/CantidadProductos', async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
@@ -546,8 +540,7 @@ app.post("/api/reporte-compras", async (req, res) => {
   }
 });
 
-
-// Sesion Usuario
+// SESION DE USUARIO
 
 app.post('/login', (req, res) => {
 
