@@ -1,17 +1,17 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const sql = require('mssql');
+const express = require("express");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const sql = require("mssql");
 
 const app = express();
 const port = 5000;
 
 // Configuración de conexión a SQL Server
 const dbConfig = {
-  server: 'localhost',
-  database: 'INVENT',
-  user: 'prueba',
-  password: '123',
+  server: "localhost",
+  database: "INVENT",
+  user: "prueba",
+  password: "123",
   trustServerCertificate: true,
   options: {
     trustedConnection: true,
@@ -24,29 +24,32 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
 // ENDPOINTS CLIENTES
-app.get('/api/Clientes', async (req, res) => {
+app.get("/api/Clientes", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query('SELECT * FROM Clientes');
+    const result = await pool.request().query("SELECT * FROM Clientes");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
     // Caso contrario nos manda el error del porque no se puede
-    console.error('Error al obtener elementos:', error);
-    res.status(500).send('Error del servidor');
+    console.error("Error al obtener elementos:", error);
+    res.status(500).send("Error del servidor");
   }
 });
 
-app.post('/api/CrearCliente', (req, res) => {
-  const { nombreCliente, telefonoCliente, correoCliente, direccionCliente } = req.body;
+app.post("/api/CrearCliente", (req, res) => {
+  const { nombreCliente, telefonoCliente, correoCliente, direccionCliente } =
+    req.body;
 
   const connection = new sql.ConnectionPool(dbConfig);
 
   connection.connect((err) => {
     if (err) {
       console.log(err);
-      return res.status(500).json({ mensaje: 'Error interno del servidor 1 - Conexion la BD' });
+      return res
+        .status(500)
+        .json({ mensaje: "Error interno del servidor 1 - Conexion la BD" });
     }
     const insertQuery = `INSERT INTO Clientes (NombreCliente, TelefonoCliente, CorreoCliente, DireccionCliente) VALUES ('${nombreCliente}', '${telefonoCliente}', '${correoCliente}', '${direccionCliente}')`;
 
@@ -54,13 +57,14 @@ app.post('/api/CrearCliente', (req, res) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res.status(500).json({ mensaje: 'Error interno del servidor 3' });
+        return res
+          .status(500)
+          .json({ mensaje: "Error interno del servidor 3" });
       }
 
       connection.close();
-      res.status(201).json({ mensaje: 'Cliente registrado correctamente' });
-      console.log(`Cliente: ${nombreCliente}, creado correctamente`)
-
+      res.status(201).json({ mensaje: "Cliente registrado correctamente" });
+      console.log(`Cliente: ${nombreCliente}, creado correctamente`);
     });
   });
 });
@@ -101,7 +105,7 @@ app.put("/api/ActualizarClientes/:id", async (req, res) => {
   }
 });
 
-app.post('/api/DeleteCliente', (req, res) => {
+app.post("/api/DeleteCliente", (req, res) => {
   const { id } = req.body;
 
   const connection = new sql.ConnectionPool(dbConfig);
@@ -109,7 +113,7 @@ app.post('/api/DeleteCliente', (req, res) => {
   connection.connect((err) => {
     if (err) {
       console.log(err);
-      return res.status(500).json({ mensaje: 'Error al conectarse a la BD' });
+      return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
     }
     const insertQuery = `DELETE FROM Clientes WHERE IdCliente = ${id}`;
 
@@ -117,41 +121,46 @@ app.post('/api/DeleteCliente', (req, res) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res.status(500).json({ mensaje: 'Error en el query' });
+        return res.status(500).json({ mensaje: "Error en el query" });
       }
 
       connection.close();
-      res.status(201).json({ mensaje: 'Cliente eliminado correctamente' });
-      console.log(`Cliente con id ${id}, eliminado correctamente`)
-
+      res.status(201).json({ mensaje: "Cliente eliminado correctamente" });
+      console.log(`Cliente con id ${id}, eliminado correctamente`);
     });
   });
 });
 
 // ENDPOINTS PROVEEDORES
-app.get('/api/Proveedores', async (req, res) => {
+app.get("/api/Proveedores", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query('SELECT * FROM Proveedores');
+    const result = await pool.request().query("SELECT * FROM Proveedores");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
     // Caso contrario nos manda el error del porque no se puede
-    console.error('Error al obtener Proveedores:', error);
-    res.status(500).send('Error del servidor');
+    console.error("Error al obtener Proveedores:", error);
+    res.status(500).send("Error del servidor");
   }
 });
 
-app.post('/api/CrearProveedor', (req, res) => {
-  const { nombreProveedor, telefonoProveedor, direccionProveedor, correoProveedor, pais } = req.body;
+app.post("/api/CrearProveedor", (req, res) => {
+  const {
+    nombreProveedor,
+    telefonoProveedor,
+    direccionProveedor,
+    correoProveedor,
+    pais,
+  } = req.body;
 
   const connection = new sql.ConnectionPool(dbConfig);
 
   connection.connect((err) => {
     if (err) {
       console.log(err);
-      return res.status(500).json({ mensaje: 'Error interno del servidor 1' });
+      return res.status(500).json({ mensaje: "Error interno del servidor 1" });
     }
     const insertQuery = `INSERT INTO Proveedores (NombreProveedor, TelefonoProveedor, DireccionProveedor, CorreoProveedor, Pais) VALUES ('${nombreProveedor}', '${telefonoProveedor}', '${direccionProveedor}', '${correoProveedor}', '${pais}')`;
 
@@ -159,13 +168,14 @@ app.post('/api/CrearProveedor', (req, res) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res.status(500).json({ mensaje: 'Error interno del servidor 3 - En el query' });
+        return res
+          .status(500)
+          .json({ mensaje: "Error interno del servidor 3 - En el query" });
       }
 
       connection.close();
-      res.status(201).json({ mensaje: 'Proveedor creado correctamente' });
-      console.log(`Cliente: ${nombreProveedor}, creado correctamente`)
-
+      res.status(201).json({ mensaje: "Proveedor creado correctamente" });
+      console.log(`Cliente: ${nombreProveedor}, creado correctamente`);
     });
   });
 });
@@ -173,12 +183,19 @@ app.post('/api/CrearProveedor', (req, res) => {
 app.put("/api/ActualizarProveedor/:id", async (req, res) => {
   try {
     const { id } = req.params; // Obtener el ID del cliente de los parámetros de la solicitud
-    const { nombreProveedor, telefonoProveedor, direccionProveedor, correoProveedor, pais } = req.body; // Obtener los nuevos valores del cliente de la solicitud
+    const {
+      nombreProveedor,
+      telefonoProveedor,
+      direccionProveedor,
+      correoProveedor,
+      pais,
+    } = req.body; // Obtener los nuevos valores del cliente de la solicitud
 
     const pool = await sql.connect(dbConfig);
 
     // Obtener los datos actuales del cliente desde la base de datos
-    const queryProveedor = "SELECT * FROM Proveedores WHERE IdProveedor = @IdProveedor";
+    const queryProveedor =
+      "SELECT * FROM Proveedores WHERE IdProveedor = @IdProveedor";
     const resultProveedor = await pool
       .request()
       .input("IdProveedor", id)
@@ -188,7 +205,8 @@ app.put("/api/ActualizarProveedor/:id", async (req, res) => {
     // Verificar si los campos están vacíos y usar los valores actuales en su lugar
     const nombreActual = nombreProveedor || proveedorActual.NombreCliente;
     const telefonoActual = telefonoProveedor || proveedorActual.TelefonoCliente;
-    const direccionActual = direccionProveedor || proveedorActual.DireccionProveedor;
+    const direccionActual =
+      direccionProveedor || proveedorActual.DireccionProveedor;
     const correoActual = correoProveedor || proveedorActual.CorreoProveedor;
     const paisActual = pais || proveedorActual.Pais;
 
@@ -212,8 +230,7 @@ app.put("/api/ActualizarProveedor/:id", async (req, res) => {
   }
 });
 
-app.delete('/api/DeleteProveedor/:id', (req, res) => {
-
+app.delete("/api/DeleteProveedor/:id", (req, res) => {
   const { id } = req.params;
 
   const connection = new sql.ConnectionPool(dbConfig);
@@ -221,7 +238,7 @@ app.delete('/api/DeleteProveedor/:id', (req, res) => {
   connection.connect((err) => {
     if (err) {
       console.log(err);
-      return res.status(500).json({ mensaje: 'Error al conectarse a la BD' });
+      return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
     }
     const insertQuery = `DELETE FROM Proveedores WHERE IdProveedor = ${id}`;
 
@@ -229,34 +246,33 @@ app.delete('/api/DeleteProveedor/:id', (req, res) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res.status(500).json({ mensaje: 'Error en el query' });
+        return res.status(500).json({ mensaje: "Error en el query" });
       }
 
       connection.close();
-      res.status(201).json({ mensaje: 'Proveedor eliminado correctamente' });
-      console.log(`Proveedor con id ${id}, eliminado correctamente`)
-
+      res.status(201).json({ mensaje: "Proveedor eliminado correctamente" });
+      console.log(`Proveedor con id ${id}, eliminado correctamente`);
     });
   });
 });
 
 // ENDPOINTS PRODUCTOS
-app.get('/api/Productos', async (req, res) => {
+app.get("/api/Productos", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query('SELECT * FROM Productos');
+    const result = await pool.request().query("SELECT * FROM Productos");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
     // Caso contrario nos manda el error del porque no se puede
-    console.error('Error al obtener Productos:', error);
-    res.status(500).send('Error del servidor');
+    console.error("Error al obtener Productos:", error);
+    res.status(500).send("Error del servidor");
   }
 });
 
-app.post('/api/CrearProducto', (req, res) => {
-  const { nombreProducto, descripcion, precioCompra, precioVenta } = req.body;
+app.post("/api/CrearProducto", (req, res) => {
+  const { nombreProducto, descripcion } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
@@ -265,7 +281,7 @@ app.post('/api/CrearProducto', (req, res) => {
   connection.connect((err) => {
     if (err) {
       console.log(err);
-      return res.status(500).json({ mensaje: 'Error al conectar a la BD' });
+      return res.status(500).json({ mensaje: "Error al conectar a la BD" });
     }
 
     // Insertar nuevo CLIENTE en la base de datos
@@ -275,18 +291,16 @@ app.post('/api/CrearProducto', (req, res) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res.status(500).json({ mensaje: 'Error en la peticion' });
+        return res.status(500).json({ mensaje: "Error en la peticion" });
       }
 
       connection.close();
-      res.status(201).json({ mensaje: 'Producto creado correctamente' });
-
+      res.status(201).json({ mensaje: "Producto creado correctamente" });
     });
-
   });
 });
 
-app.get('/api/ProductoPrecio', async (req, res) => {
+app.get("/api/ProductoPrecio", async (req, res) => {
   const nombreProducto = req.query.nombre;
 
   try {
@@ -303,11 +317,11 @@ app.get('/api/ProductoPrecio', async (req, res) => {
       const precio = result.recordset[0].PrecioCompra;
       res.json({ precio });
     } else {
-      res.status(404).json({ mensaje: 'Producto no encontrado' });
+      res.status(404).json({ mensaje: "Producto no encontrado" });
     }
   } catch (error) {
-    console.error('Error en la consulta:', error);
-    res.status(500).json({ mensaje: 'Error en el servidor' });
+    console.error("Error en la consulta:", error);
+    res.status(500).json({ mensaje: "Error en el servidor" });
   } finally {
     // Cerrar la conexión a la base de datos
     sql.close();
@@ -315,7 +329,7 @@ app.get('/api/ProductoPrecio', async (req, res) => {
 });
 
 // ENTRADAS - SALIDAS
-app.post('/api/GenerarEntrada', (req, res) => {
+app.post("/api/GenerarEntrada", (req, res) => {
   const { nombreProducto, nombreProveedor, cantidad, totalEgreso } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
@@ -325,11 +339,13 @@ app.post('/api/GenerarEntrada', (req, res) => {
   connection.connect((err) => {
     if (err) {
       console.log(err);
-      return res.status(500).json({ mensaje: 'No se pudo conectar a la BD' });
+      return res.status(500).json({ mensaje: "No se pudo conectar a la BD" });
     }
 
     if (!nombreProducto || !nombreProveedor || !cantidad || !totalEgreso) {
-      return res.status(400).json({ mensaje: 'Todos los campos son necesarios' });
+      return res
+        .status(400)
+        .json({ mensaje: "Todos los campos son necesarios" });
     }
 
     // Insertar nuevo CLIENTE en la base de datos
@@ -350,31 +366,30 @@ app.post('/api/GenerarEntrada', (req, res) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res.status(500).json({ mensaje: 'Error en el query' });
+        return res.status(500).json({ mensaje: "Error en el query" });
       }
 
       connection.close();
-      res.status(201).json({ mensaje: 'Compra Registrada Correctamente' });
-
+      res.status(201).json({ mensaje: "Compra Registrada Correctamente" });
     });
   });
 });
 
-app.get('/api/Entradas', async (req, res) => {
+app.get("/api/Entradas", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query('SELECT * FROM Entradas');
+    const result = await pool.request().query("SELECT * FROM Entradas");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
     // Caso contrario nos manda el error del porque no se puede
-    console.error('Error al obtener Entradas:', error);
-    res.status(500).send('Error del servidor');
+    console.error("Error al obtener Entradas:", error);
+    res.status(500).send("Error del servidor");
   }
 });
 
-app.post('/api/GenerarSalida', (req, res) => {
+app.post("/api/GenerarSalida", (req, res) => {
   const { idProduct, idCliente, cantidad } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
@@ -384,11 +399,11 @@ app.post('/api/GenerarSalida', (req, res) => {
   connection.connect((err) => {
     if (err) {
       console.log(err);
-      return res.status(500).json({ mensaje: 'Error interno del servidor 1' });
+      return res.status(500).json({ mensaje: "Error interno del servidor 1" });
     }
 
     if (!idProduct || !idCliente || !cantidad) {
-      return res.status(400).json({ error: 'Todos los campos son necesarios' });
+      return res.status(400).json({ error: "Todos los campos son necesarios" });
     }
 
     // Insertar nuevo CLIENTE en la base de datos
@@ -407,71 +422,77 @@ app.post('/api/GenerarSalida', (req, res) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res.status(500).json({ mensaje: 'Por favor ingresa todos los campos' });
+        return res
+          .status(500)
+          .json({ mensaje: "Por favor ingresa todos los campos" });
       }
 
       connection.close();
-      res.status(201).json({ mensaje: 'Venta registrada correctamente' });
-
+      res.status(201).json({ mensaje: "Venta registrada correctamente" });
     });
-
   });
 });
 
-app.get('/api/Salidas', async (req, res) => {
+app.get("/api/Salidas", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query('SELECT * FROM Salidas');
+    const result = await pool.request().query("SELECT * FROM Salidas");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
     // Caso contrario nos manda el error del porque no se puede
-    console.error('Error al obtener Entradas:', error);
-    res.status(500).send('Error del servidor');
+    console.error("Error al obtener Entradas:", error);
+    res.status(500).send("Error del servidor");
   }
 });
 
-// REPORTES 
-app.get('/api/CantidadProductos', async (req, res) => {
+// REPORTES
+app.get("/api/CantidadProductos", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query('SELECT COUNT(*) AS TotalProductos FROM Productos;');
+    const result = await pool
+      .request()
+      .query("SELECT COUNT(*) AS TotalProductos FROM Productos;");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
     // Caso contrario nos manda el error del porque no se puede
-    console.error('Error al obtener total de productos:', error);
-    res.status(500).send('Error del servidor');
+    console.error("Error al obtener total de productos:", error);
+    res.status(500).send("Error del servidor");
   }
 });
 
-app.get('/api/CantidadClientes', async (req, res) => {
+app.get("/api/CantidadClientes", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query('SELECT COUNT(*) AS TotalClientes FROM Clientes;');
+    const result = await pool
+      .request()
+      .query("SELECT COUNT(*) AS TotalClientes FROM Clientes;");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
     // Caso contrario nos manda el error del porque no se puede
-    console.error('Error al obtener total de Clientes:', error);
-    res.status(500).send('Error del servidor');
+    console.error("Error al obtener total de Clientes:", error);
+    res.status(500).send("Error del servidor");
   }
 });
 
-app.get('/api/CantidadVentasRealizadas', async (req, res) => {
+app.get("/api/CantidadVentasRealizadas", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query('SELECT COUNT(*) AS TotalSalidas FROM Salidas;');
+    const result = await pool
+      .request()
+      .query("SELECT COUNT(*) AS TotalSalidas FROM Salidas;");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
     // Caso contrario nos manda el error del porque no se puede
-    console.error('Error al obtener total de Ventas:', error);
-    res.status(500).send('Error del servidor');
+    console.error("Error al obtener total de Ventas:", error);
+    res.status(500).send("Error del servidor");
   }
 });
 
@@ -569,11 +590,9 @@ app.post("/api/reporte-compras", async (req, res) => {
   }
 });
 
-
 // SESION DE USUARIO
 
-app.post('/login', (req, res) => {
-
+app.post("/login", (req, res) => {
   const { nombreUsuario, contrasena } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
@@ -582,7 +601,7 @@ app.post('/login', (req, res) => {
   connection.connect((err) => {
     if (err) {
       console.log(err);
-      return res.status(500).json({ mensaje: 'Error interno del servidor' });
+      return res.status(500).json({ mensaje: "Error interno del servidor" });
     }
 
     // Buscar usuario por nombre de usuario y contraseña
@@ -592,21 +611,23 @@ app.post('/login', (req, res) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res.status(500).json({ mensaje: 'Error interno del servidor' });
+        return res.status(500).json({ mensaje: "Error interno del servidor" });
       }
 
       if (result.recordset.length === 0) {
         connection.close();
-        return res.status(401).json({ mensaje: 'Usuario/Contraseña Incorrectos' });
+        return res
+          .status(401)
+          .json({ mensaje: "Usuario/Contraseña Incorrectos" });
       }
 
       connection.close();
-      res.status(200).json({ mensaje: 'Inicio de sesión exitoso' });
+      res.status(200).json({ mensaje: "Inicio de sesión exitoso" });
     });
   });
 });
 
-app.post('/registro', (req, res) => {
+app.post("/registro", (req, res) => {
   const { nombreUsuario, contrasena } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
@@ -615,7 +636,7 @@ app.post('/registro', (req, res) => {
   connection.connect((err) => {
     if (err) {
       console.log(err);
-      return res.status(500).json({ mensaje: 'Error interno del servidor 1' });
+      return res.status(500).json({ mensaje: "Error interno del servidor 1" });
     }
 
     // Verificar si el usuario ya existe
@@ -625,15 +646,17 @@ app.post('/registro', (req, res) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res.status(500).json({ mensaje: 'Error interno del servidor 2' });
+        return res
+          .status(500)
+          .json({ mensaje: "Error interno del servidor 2" });
       }
 
       if (result.recordset.length > 0) {
         connection.close();
-        return res.status(400).json({ mensaje: 'Nombre usuario no disponible' });
+        return res
+          .status(400)
+          .json({ mensaje: "Nombre usuario no disponible" });
       }
-
-
 
       // Insertar nuevo usuario en la base de datos
       const insertQuery = `INSERT INTO Users (Username, Pass) VALUES ('${nombreUsuario}', '${contrasena}')`;
@@ -642,17 +665,77 @@ app.post('/registro', (req, res) => {
         if (err) {
           console.log(err);
           connection.close();
-          return res.status(500).json({ mensaje: 'Error interno del servidor 3' });
+          return res
+            .status(500)
+            .json({ mensaje: "Error interno del servidor 3" });
         }
 
         connection.close();
-        res.status(201).json({ mensaje: 'Usuario registrado correctamente' });
+        res.status(201).json({ mensaje: "Usuario registrado correctamente" });
       });
     });
   });
 });
 
+// Eliminar compras
+app.delete("/api/EliminarEntrada/:id", async (req, res) => {
+  const entradaId = req.params.id;
+
+  if (!entradaId) {
+    return res
+      .status(400)
+      .json({ mensaje: "Se requiere proporcionar el ID de la entrada" });
+  }
+
+  try {
+    const pool = await sql.connect(dbConfig);
+
+    // Verificar si la entrada existe antes de eliminarla
+    const verificarQuery = `SELECT IdEntrada, NombreProducto, Cantidad FROM Entradas WHERE IdEntrada = ${entradaId}`;
+    const verificarResult = await pool.request().query(verificarQuery);
+
+    if (verificarResult.recordset.length === 0) {
+      return res.status(404).json({ mensaje: "La entrada no existe" });
+    }
+
+    // Obtener los datos de la entrada eliminada
+    const { IdEntrada, NombreProducto, Cantidad } =
+      verificarResult.recordset[0];
+
+    // Obtener el producto asociado a la entrada eliminada
+    const productoQuery = `SELECT IdProducto, Stock FROM Productos WHERE Nombre = '${NombreProducto}'`;
+    const productoResult = await pool.request().query(productoQuery);
+
+    if (productoResult.recordset.length === 0) {
+      return res.status(404).json({ mensaje: "El producto no existe" });
+    }
+
+    // Eliminar la entrada de la base de datos
+    const eliminarQuery = `DELETE FROM Entradas WHERE IdEntrada = ${entradaId}`;
+    await pool.request().query(eliminarQuery);
+
+    // Actualizar el stock del producto
+    const productoId = productoResult.recordset[0].IdProducto;
+    const stockActual = productoResult.recordset[0].Stock;
+    const nuevoStock = stockActual - Cantidad;
+
+    const actualizarStockQuery = `UPDATE Productos SET Stock = ${nuevoStock} WHERE IdProducto = ${productoId}`;
+    await pool.request().query(actualizarStockQuery);
+
+    // Obtener la lista actualizada de entradas
+    const entradasQuery = "SELECT * FROM Entradas";
+    const entradasResult = await pool.request().query(entradasQuery);
+    const entradas = entradasResult.recordset;
+
+    res
+      .status(200)
+      .json({ mensaje: "La compra ha sido eliminada exitosamente", entradas });
+  } catch (error) {
+    console.error("Error al eliminar la entrada:", error);
+    res.status(500).json({ mensaje: "Error del servidor" });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Servidor escuchando en http://localhost:${port}`);
 });
-
