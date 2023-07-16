@@ -256,7 +256,7 @@ app.get('/api/Productos', async (req, res) => {
 });
 
 app.post('/api/CrearProducto', (req, res) => {
-  const { nombreProducto, descripcion } = req.body;
+  const { nombreProducto, descripcion, precioCompra, precioVenta } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
@@ -269,7 +269,7 @@ app.post('/api/CrearProducto', (req, res) => {
     }
 
     // Insertar nuevo CLIENTE en la base de datos
-    const insertQuery = `INSERT INTO Productos (Nombre, Descripcion) VALUES ('${nombreProducto}', '${descripcion}')`;
+    const insertQuery = `INSERT INTO Productos (Nombre, Descripcion, PrecioCompra, PrecioVenta) VALUES ('${nombreProducto}', '${descripcion}', '${precioCompra}', '${precioVenta}')`;
 
     connection.request().query(insertQuery, (err, result) => {
       if (err) {
