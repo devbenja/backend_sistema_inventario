@@ -549,8 +549,10 @@ app.post("/api/reporte-ventas", async (req, res) => {
 
     // Consulta SQL para obtener los registros en el rango de fechas
     const query = `
-      SELECT IdSalida, IdProducto, IdCliente, Cantidad, FechaSalida
-      FROM Salidas
+      
+
+    SELECT IdSalida, NombreProducto, NombreCliente, Cantidad, TotalDineroIngresado, FechaSalida
+    FROM Salidas
       WHERE FechaSalida >= @fechaInicial AND FechaSalida <= @fechaFinal;
     `;
 
@@ -575,7 +577,6 @@ app.post("/api/reporte-ventas", async (req, res) => {
     }
   }
 });
-
 app.post("/api/reporte-compras", async (req, res) => {
   console.log("Solicitud de reporte de compra recibida");
   const { fechaInicio, fechaFin } = req.body;
@@ -596,8 +597,8 @@ app.post("/api/reporte-compras", async (req, res) => {
 
     // Consulta SQL para obtener los registros en el rango de fechas
     const query = `
-      SELECT IdEntrada, IdProducto, IdProveedor, Cantidad, FechaEntrada
-      FROM Entradas
+	  SELECT IdEntrada, NombreProducto, NombreProveedor, Cantidad, TotalDineroGastado, FechaEntrada
+    FROM Entradas
       WHERE FechaEntrada >= @fechaInicial AND FechaEntrada <= @fechaFinal;
     `;
 
