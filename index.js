@@ -333,7 +333,7 @@ app.get("/api/ProductoPrecioCompra", async (req, res) => {
 });
 
 app.get("/api/ProductoPrecioVenta", async (req, res) => {
-  
+
   const nombreProducto = req.query.nombre;
 
   try {
@@ -364,7 +364,7 @@ app.get("/api/ProductoPrecioVenta", async (req, res) => {
 // ENTRADAS - SALIDAS
 app.post("/api/GenerarEntrada", (req, res) => {
 
-  const { nombreProducto, nombreProveedor, cantidad, totalEgreso } = req.body;
+  const { nombreProducto, nombreProveedor, cantidad, precio, subtotal, total, iva } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
@@ -376,7 +376,7 @@ app.post("/api/GenerarEntrada", (req, res) => {
       return res.status(500).json({ mensaje: "No se pudo conectar a la BD" });
     }
 
-    if (!nombreProducto || !nombreProveedor || !cantidad || !totalEgreso) {
+    if (!nombreProducto || !nombreProveedor || !cantidad || !total || !precio || !subtotal || !iva) {
       return res
         .status(400)
         .json({ mensaje: "Todos los campos son necesarios" });
@@ -387,14 +387,20 @@ app.post("/api/GenerarEntrada", (req, res) => {
     DECLARE @NombreProducto VARCHAR(100);
     DECLARE @NombreProveedor VARCHAR(100);
     DECLARE @Cantidad INT;
+    DECLARE @SubtotalCompra INT;
     DECLARE @TotalDineroGastado INT;
+    DECLARE @PrecioCompra INT;
+    DECLARE @IVA DECIMAL(10,2);
 
     SET @NombreProducto = '${nombreProducto}'; 
     SET @NombreProveedor = '${nombreProveedor}'; 
     SET @Cantidad = ${cantidad};
-    SET @TotalDineroGastado = ${totalEgreso}; 
+    SET @SubtotalCompra = ${subtotal};
+    SET @TotalDineroGastado = ${total}; 
+    SET @PrecioCompra = ${precio};
+    SET @IVA = ${iva};
 
-    EXEC RegistrarEntrada @NombreProducto, @NombreProveedor, @Cantidad, @TotalDineroGastado;`;
+    EXEC RegistrarEntrada @NombreProducto, @NombreProveedor, @Cantidad, @PrecioCompra, @SubtotalCompra, @TotalDineroGastado, @IVA;`;
 
     connection.request().query(insertQuery, (err, result) => {
       if (err) {
@@ -425,7 +431,7 @@ app.get("/api/Entradas", async (req, res) => {
 
 app.post("/api/GenerarSalida", (req, res) => {
 
-  const { nombreProducto, nombreCliente, cantidad, totalIngreso } = req.body;
+  const { nombreProducto, nombreCliente, cantidad, totalMasIva, subtotal, precio, iva } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
@@ -437,7 +443,7 @@ app.post("/api/GenerarSalida", (req, res) => {
       return res.status(500).json({ mensaje: "No se conecto a la BD" });
     }
 
-    if (!nombreProducto || !nombreCliente || !cantidad || !totalIngreso ) {
+    if (!nombreProducto || !nombreCliente || !cantidad || !totalMasIva || !precio || !iva || !subtotal) {
       return res.status(400).json({ error: "Todos los campos son necesarios" });
     }
 
@@ -447,13 +453,19 @@ app.post("/api/GenerarSalida", (req, res) => {
     DECLARE @NombreCliente VARCHAR(100);
     DECLARE @Cantidad INT;
     DECLARE @TotalDineroIngresado INT;
+    DECLARE @SubtotalVenta INT;
+    DECLARE @PrecioVenta INT;
+    DECLARE @IVA DECIMAL(10,2); 
 
     SET @NombreProducto = '${nombreProducto}'; 
     SET @NombreCliente = '${nombreCliente}'; 
     SET @Cantidad = ${cantidad};
-    SET @TotalDineroIngresado = ${totalIngreso}; 
+    SET @TotalDineroIngresado = ${totalMasIva}; 
+    SET @SubtotalVenta = ${subtotal};
+    SET @PrecioVenta = ${precio};
+    SET @IVA = ${iva};
 
-    EXEC RegistrarSalida @NombreProducto, @NombreCliente, @Cantidad, @TotalDineroIngresado;`;
+    EXEC RegistrarSalida @NombreProducto, @NombreCliente, @Cantidad, @TotalDineroIngresado, @SubtotalVenta, @PrecioVenta, @IVA;`;
 
     connection.request().query(insertQuery, (err, result) => {
       if (err) {
