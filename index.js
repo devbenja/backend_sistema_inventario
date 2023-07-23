@@ -9,9 +9,9 @@ const port = 5000;
 // Configuración de conexión a SQL Server
 const dbConfig = {
   server: "localhost",
-  database: "INVENT",
-  user: "prueba",
-  password: "123",
+  database: "INVENT22",
+  user: "sa",
+  password: "1234",
   trustServerCertificate: true,
   options: {
     trustedConnection: true,
@@ -72,7 +72,8 @@ app.post("/api/CrearCliente", (req, res) => {
 app.put("/api/ActualizarClientes/:id", async (req, res) => {
   try {
     const { id } = req.params; // Obtener el ID del cliente de los parámetros de la solicitud
-    const { nombreCliente, telefonoCliente, correoCliente, direccionCliente } = req.body; // Obtener los nuevos valores del cliente de la solicitud
+    const { nombreCliente, telefonoCliente, correoCliente, direccionCliente } =
+      req.body; // Obtener los nuevos valores del cliente de la solicitud
 
     const pool = await sql.connect(dbConfig);
 
@@ -333,7 +334,7 @@ app.get("/api/ProductoPrecioCompra", async (req, res) => {
 });
 
 app.get("/api/ProductoPrecioVenta", async (req, res) => {
-
+  
   const nombreProducto = req.query.nombre;
 
   try {
@@ -364,7 +365,7 @@ app.get("/api/ProductoPrecioVenta", async (req, res) => {
 // ENTRADAS - SALIDAS
 app.post("/api/GenerarEntrada", (req, res) => {
 
-  const { nombreProducto, nombreProveedor, cantidad, precio, subtotal, total, iva } = req.body;
+  const { nombreProducto, nombreProveedor, cantidad, totalEgreso } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
@@ -431,7 +432,7 @@ app.get("/api/Entradas", async (req, res) => {
 
 app.post("/api/GenerarSalida", (req, res) => {
 
-  const { nombreProducto, nombreCliente, cantidad, totalMasIva, subtotal, precio, iva } = req.body;
+  const { nombreProducto, nombreCliente, cantidad, totalIngreso } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
@@ -443,7 +444,7 @@ app.post("/api/GenerarSalida", (req, res) => {
       return res.status(500).json({ mensaje: "No se conecto a la BD" });
     }
 
-    if (!nombreProducto || !nombreCliente || !cantidad || !totalMasIva || !precio || !iva || !subtotal) {
+    if (!nombreProducto || !nombreCliente || !cantidad || !totalIngreso ) {
       return res.status(400).json({ error: "Todos los campos son necesarios" });
     }
 
@@ -471,9 +472,7 @@ app.post("/api/GenerarSalida", (req, res) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res
-          .status(500)
-          .json({ mensaje: "Error en el query" });
+        return res.status(500).json({ mensaje: "Error en el query" });
       }
 
       connection.close();
@@ -565,8 +564,10 @@ app.post("/api/reporte-ventas", async (req, res) => {
 
     // Consulta SQL para obtener los registros en el rango de fechas
     const query = `
-      SELECT IdSalida, IdProducto, IdCliente, Cantidad, FechaSalida
-      FROM Salidas
+      
+
+    SELECT IdSalida, NombreProducto, NombreCliente, Cantidad, TotalDineroIngresado, FechaSalida
+    FROM Salidas
       WHERE FechaSalida >= @fechaInicial AND FechaSalida <= @fechaFinal;
     `;
 
@@ -591,7 +592,6 @@ app.post("/api/reporte-ventas", async (req, res) => {
     }
   }
 });
-
 app.post("/api/reporte-compras", async (req, res) => {
   console.log("Solicitud de reporte de compra recibida");
   const { fechaInicio, fechaFin } = req.body;
@@ -612,8 +612,8 @@ app.post("/api/reporte-compras", async (req, res) => {
 
     // Consulta SQL para obtener los registros en el rango de fechas
     const query = `
-      SELECT IdEntrada, IdProducto, IdProveedor, Cantidad, FechaEntrada
-      FROM Entradas
+	  SELECT IdEntrada, NombreProducto, NombreProveedor, Cantidad, TotalDineroGastado, FechaEntrada
+    FROM Entradas
       WHERE FechaEntrada >= @fechaInicial AND FechaEntrada <= @fechaFinal;
     `;
 
@@ -637,93 +637,6 @@ app.post("/api/reporte-compras", async (req, res) => {
       sql.close();
     }
   }
-});
-
-// SESION DE USUARIO
-
-app.post("/login", (req, res) => {
-  const { nombreUsuario, contrasena } = req.body;
-
-  // Crear una nueva instancia de conexión a la base de datos
-  const connection = new sql.ConnectionPool(dbConfig);
-
-  connection.connect((err) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).json({ mensaje: "Error interno del servidor" });
-    }
-
-    // Buscar usuario por nombre de usuario y contraseña
-    const query = `SELECT * FROM Users WHERE Username = '${nombreUsuario}' AND Pass = '${contrasena}'`;
-
-    connection.request().query(query, (err, result) => {
-      if (err) {
-        console.log(err);
-        connection.close();
-        return res.status(500).json({ mensaje: "Error interno del servidor" });
-      }
-
-      if (result.recordset.length === 0) {
-        connection.close();
-        return res
-          .status(401)
-          .json({ mensaje: "Usuario/Contraseña Incorrectos" });
-      }
-
-      connection.close();
-      res.status(200).json({ mensaje: "Inicio de sesión exitoso" });
-    });
-  });
-});
-
-app.post("/registro", (req, res) => {
-  const { nombreUsuario, contrasena } = req.body;
-
-  // Crear una nueva instancia de conexión a la base de datos
-  const connection = new sql.ConnectionPool(dbConfig);
-
-  connection.connect((err) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).json({ mensaje: "Error interno del servidor 1" });
-    }
-
-    // Verificar si el usuario ya existe
-    const query = `SELECT * FROM Users WHERE Username = '${nombreUsuario}'`;
-
-    connection.request().query(query, (err, result) => {
-      if (err) {
-        console.log(err);
-        connection.close();
-        return res
-          .status(500)
-          .json({ mensaje: "Error interno del servidor 2" });
-      }
-
-      if (result.recordset.length > 0) {
-        connection.close();
-        return res
-          .status(400)
-          .json({ mensaje: "Nombre usuario no disponible" });
-      }
-
-      // Insertar nuevo usuario en la base de datos
-      const insertQuery = `INSERT INTO Users (Username, Pass) VALUES ('${nombreUsuario}', '${contrasena}')`;
-
-      connection.request().query(insertQuery, (err, result) => {
-        if (err) {
-          console.log(err);
-          connection.close();
-          return res
-            .status(500)
-            .json({ mensaje: "Error interno del servidor 3" });
-        }
-
-        connection.close();
-        res.status(201).json({ mensaje: "Usuario registrado correctamente" });
-      });
-    });
-  });
 });
 
 // Eliminar compras
@@ -785,7 +698,64 @@ app.delete("/api/EliminarEntrada/:id", async (req, res) => {
   }
 });
 
+// Eliminar Ventas
+app.delete("/api/EliminarSalida/:id", async (req, res) => {
+  const salidaId = req.params.id;
+
+  if (!salidaId) {
+    return res
+      .status(400)
+      .json({ mensaje: "Se requiere proporcionar el ID de la venta" });
+  }
+
+  try {
+    const pool = await sql.connect(dbConfig);
+
+    // Verificar si la venta existe antes de eliminarla
+    const verificarQuery = `SELECT IdSalida, NombreProducto, Cantidad FROM Salidas WHERE IdSalida = ${salidaId}`;
+    const verificarResult = await pool.request().query(verificarQuery);
+
+    if (verificarResult.recordset.length === 0) {
+      return res.status(404).json({ mensaje: "La venta no existe" });
+    }
+
+    // Obtener los datos de la venta eliminada
+    const { IdSalida, NombreProducto, Cantidad } = verificarResult.recordset[0];
+
+    // Obtener el producto asociado a la venta eliminada
+    const productoQuery = `SELECT IdProducto, Stock FROM Productos WHERE Nombre = '${NombreProducto}'`;
+    const productoResult = await pool.request().query(productoQuery);
+
+    if (productoResult.recordset.length === 0) {
+      return res.status(404).json({ mensaje: "El producto no existe" });
+    }
+
+    // Eliminar la venta de la base de datos
+    const eliminarQuery = `DELETE FROM Salidas WHERE IdSalida = ${salidaId}`;
+    await pool.request().query(eliminarQuery);
+
+    // Actualizar el stock del producto
+    const productoId = productoResult.recordset[0].IdProducto;
+    const stockActual = productoResult.recordset[0].Stock;
+    const nuevoStock = stockActual + Cantidad; // Se regresa la cantidad al stock
+
+    const actualizarStockQuery = `UPDATE Productos SET Stock = ${nuevoStock} WHERE IdProducto = ${productoId}`;
+    await pool.request().query(actualizarStockQuery);
+
+    // Obtener la lista actualizada de ventas
+    const salidasQuery = "SELECT * FROM Salidas";
+    const salidasResult = await pool.request().query(salidasQuery);
+    const salidas = salidasResult.recordset;
+
+    res
+      .status(200)
+      .json({ mensaje: "La venta ha sido eliminada exitosamente", salidas });
+  } catch (error) {
+    console.error("Error al eliminar la salida:", error);
+    res.status(500).json({ mensaje: "Error del servidor" });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Servidor escuchando en http://localhost:${port}`);
 });
-
