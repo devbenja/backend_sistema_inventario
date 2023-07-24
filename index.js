@@ -9,7 +9,7 @@ const port = 5000;
 // Configuración de conexión a SQL Server
 const dbConfig = {
   server: "localhost",
-  database: "INVENT22",
+  database: "INVENTBD",
   user: "sa",
   password: "1234",
   trustServerCertificate: true,
@@ -334,7 +334,6 @@ app.get("/api/ProductoPrecioCompra", async (req, res) => {
 });
 
 app.get("/api/ProductoPrecioVenta", async (req, res) => {
-  
   const nombreProducto = req.query.nombre;
 
   try {
@@ -364,8 +363,15 @@ app.get("/api/ProductoPrecioVenta", async (req, res) => {
 
 // ENTRADAS - SALIDAS
 app.post("/api/GenerarEntrada", (req, res) => {
-
-  const { nombreProducto, nombreProveedor, cantidad, precio, subtotal, total, iva } = req.body;
+  const {
+    nombreProducto,
+    nombreProveedor,
+    cantidad,
+    precio,
+    subtotal,
+    total,
+    iva,
+  } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
@@ -377,7 +383,15 @@ app.post("/api/GenerarEntrada", (req, res) => {
       return res.status(500).json({ mensaje: "No se pudo conectar a la BD" });
     }
 
-    if (!nombreProducto || !nombreProveedor || !cantidad || !total || !precio || !subtotal || !iva) {
+    if (
+      !nombreProducto ||
+      !nombreProveedor ||
+      !cantidad ||
+      !total ||
+      !precio ||
+      !subtotal ||
+      !iva
+    ) {
       return res
         .status(400)
         .json({ mensaje: "Todos los campos son necesarios" });
@@ -431,8 +445,15 @@ app.get("/api/Entradas", async (req, res) => {
 });
 
 app.post("/api/GenerarSalida", (req, res) => {
-
-  const { nombreProducto, nombreCliente, cantidad, totalMasIva, subtotal, precio, iva } = req.body;
+  const {
+    nombreProducto,
+    nombreCliente,
+    cantidad,
+    totalMasIva,
+    subtotal,
+    precio,
+    iva,
+  } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
@@ -444,7 +465,7 @@ app.post("/api/GenerarSalida", (req, res) => {
       return res.status(500).json({ mensaje: "No se conecto a la BD" });
     }
 
-    if (!nombreProducto || !nombreCliente || !cantidad || !totalIngreso ) {
+    if (!nombreProducto || !nombreCliente || !cantidad || !totalMasIva) {
       return res.status(400).json({ error: "Todos los campos son necesarios" });
     }
 
@@ -545,7 +566,7 @@ app.get("/api/CantidadVentasRealizadas", async (req, res) => {
 });
 
 app.post("/api/reporte-ventas", async (req, res) => {
-  console.log("Solicitud de reporte de ventas recibida");
+  //   console.log("Solicitud de reporte de ventas recibida");
   const { fechaInicio, fechaFin } = req.body;
 
   console.log("Fecha de inicio recibida:", fechaInicio);
@@ -593,11 +614,11 @@ app.post("/api/reporte-ventas", async (req, res) => {
   }
 });
 app.post("/api/reporte-compras", async (req, res) => {
-  console.log("Solicitud de reporte de compra recibida");
+  //   console.log("Solicitud de reporte de compra recibida");
   const { fechaInicio, fechaFin } = req.body;
 
-  console.log("Fecha de inicio recibida:", fechaInicio);
-  console.log("Fecha de fin recibida:", fechaFin);
+  // console.log("Fecha de inicio recibida:", fechaInicio);
+  // console.log("Fecha de fin recibida:", fechaFin);
 
   try {
     // Crea una nueva instancia de la conexión a la base de datos
