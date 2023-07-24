@@ -365,7 +365,7 @@ app.get("/api/ProductoPrecioVenta", async (req, res) => {
 // ENTRADAS - SALIDAS
 app.post("/api/GenerarEntrada", (req, res) => {
 
-  const { nombreProducto, nombreProveedor, cantidad, totalEgreso } = req.body;
+  const { nombreProducto, nombreProveedor, cantidad, precio, subtotal, total, iva } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
@@ -432,7 +432,7 @@ app.get("/api/Entradas", async (req, res) => {
 
 app.post("/api/GenerarSalida", (req, res) => {
 
-  const { nombreProducto, nombreCliente, cantidad, totalIngreso } = req.body;
+  const { nombreProducto, nombreCliente, cantidad, totalMasIva, subtotal, precio, iva } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
