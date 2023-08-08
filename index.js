@@ -362,79 +362,138 @@ app.get("/api/ProductoPrecioVenta", async (req, res) => {
 });
 
 // ENTRADAS - SALIDAS
-app.post("/api/GenerarEntrada", (req, res) => {
-  const {
-    nombreProducto,
-    nombreProveedor,
-    cantidad,
-    precio,
-    subtotal,
-    total,
-    iva,
-  } = req.body;
+// app.post("/api/GenerarEntrada", (req, res) => {
+//   const {
+//     nombreProducto,
+//     nombreProveedor,
+//     cantidad,
+//     precio,
+//     subtotal,
+//     total,
+//     iva,
+//   } = req.body;
 
-  // Crear una nueva instancia de conexión a la base de datos
-  const connection = new sql.ConnectionPool(dbConfig);
+//   // Crear una nueva instancia de conexión a la base de datos
+//   const connection = new sql.ConnectionPool(dbConfig);
 
-  // Verificamos que se conecto a la BD de manera correcta
-  connection.connect((err) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).json({ mensaje: "No se pudo conectar a la BD" });
-    }
+//   // Verificamos que se conecto a la BD de manera correcta
+//   connection.connect((err) => {
+//     if (err) {
+//       console.log(err);
+//       return res.status(500).json({ mensaje: "No se pudo conectar a la BD" });
+//     }
 
-    if (
-      !nombreProducto ||
-      !nombreProveedor ||
-      !cantidad ||
-      !total ||
-      !precio ||
-      !subtotal ||
-      !iva
-    ) {
-      return res
-        .status(400)
-        .json({ mensaje: "Todos los campos son necesarios" });
-    }
+//     if (
+//       !nombreProducto ||
+//       !nombreProveedor ||
+//       !cantidad ||
+//       !total ||
+//       !precio ||
+//       !subtotal ||
+//       !iva
+//     ) {
+//       return res
+//         .status(400)
+//         .json({ mensaje: "Todos los campos son necesarios" });
+//     }
 
-    // Insertar nuevo CLIENTE en la base de datos
-    const insertQuery = `
-    DECLARE @NombreProducto VARCHAR(100);
-    DECLARE @NombreProveedor VARCHAR(100);
-    DECLARE @Cantidad INT;
-    DECLARE @SubtotalCompra INT;
-    DECLARE @TotalDineroGastado INT;
-    DECLARE @PrecioCompra INT;
-    DECLARE @IVA DECIMAL(10,2);
+//     // Insertar nuevo CLIENTE en la base de datos
+//     const insertQuery = `
+//     DECLARE @NombreProducto VARCHAR(100);
+//     DECLARE @NombreProveedor VARCHAR(100);
+//     DECLARE @Cantidad INT;
+//     DECLARE @SubtotalCompra INT;
+//     DECLARE @TotalDineroGastado INT;
+//     DECLARE @PrecioCompra INT;
+//     DECLARE @IVA DECIMAL(10,2);
 
-    SET @NombreProducto = '${nombreProducto}'; 
-    SET @NombreProveedor = '${nombreProveedor}'; 
-    SET @Cantidad = ${cantidad};
-    SET @SubtotalCompra = ${subtotal};
-    SET @TotalDineroGastado = ${total}; 
-    SET @PrecioCompra = ${precio};
-    SET @IVA = ${iva};
+//     SET @NombreProducto = '${nombreProducto}';
+//     SET @NombreProveedor = '${nombreProveedor}';
+//     SET @Cantidad = ${cantidad};
+//     SET @SubtotalCompra = ${subtotal};
+//     SET @TotalDineroGastado = ${total};
+//     SET @PrecioCompra = ${precio};
+//     SET @IVA = ${iva};
 
-    EXEC RegistrarEntrada @NombreProducto, @NombreProveedor, @Cantidad, @PrecioCompra, @SubtotalCompra, @TotalDineroGastado, @IVA;`;
+//     EXEC RegistrarEntrada @NombreProducto, @NombreProveedor, @Cantidad, @PrecioCompra, @SubtotalCompra, @TotalDineroGastado, @IVA;`;
 
-    connection.request().query(insertQuery, (err, result) => {
-      if (err) {
-        console.log(err);
-        connection.close();
-        return res.status(500).json({ mensaje: "Error en el query" });
-      }
+//     connection.request().query(insertQuery, (err, result) => {
+//       if (err) {
+//         console.log(err);
+//         connection.close();
+//         return res.status(500).json({ mensaje: "Error en el query" });
+//       }
 
-      connection.close();
-      res.status(201).json({ mensaje: "Compra Registrada Correctamente" });
+//       connection.close();
+//       res.status(201).json({ mensaje: "Compra Registrada Correctamente" });
+//     });
+//   });
+// });
+
+app.post("/api/GenerarEntrada", async (req, res) => {
+  const compras = req.body.productosEnVenta;
+  const totalVenta = req.body.total;
+  const totalPagado = req.body.totalPagado;
+  const vuelto = req.body.vuelto;
+
+  try {
+    // Crear una nueva instancia de conexión a la base de datos
+    const connection = await sql.connect(dbConfig);
+    // Agregar logs para verificar los datos del frontend
+    // console.log("Ventas:", compras);
+    // console.log("total Pagado:", totalPagado);
+    // console.log("Cambio:", vuelto);
+
+    const table = new sql.Table("ComprasType");
+    table.create = true;
+    table.columns.add("NombreProducto", sql.NVarChar(100), { nullable: false });
+    table.columns.add("NombreProveedor", sql.NVarChar(100), {
+      nullable: false,
     });
-  });
+    table.columns.add("Cantidad", sql.Decimal(10, 2), { nullable: false });
+    table.columns.add("Precio", sql.Decimal(10, 2), { nullable: false });
+    table.columns.add("Descuento", sql.Decimal(10, 2), { nullable: false });
+    table.columns.add("IVA", sql.Decimal(10, 2), { nullable: false });
+    table.columns.add("Subtotal", sql.Decimal(10, 2), { nullable: false });
+    table.columns.add("Total", sql.Decimal(10, 2), { nullable: false });
+    table.columns.add("TotalPagado", sql.Decimal(10, 2), { nullable: false }); // Agregar la columna TotalPagado
+    table.columns.add("Vuelto", sql.Decimal(10, 2), { nullable: false }); // Agregar la columna Vuelto
+
+    compras.forEach((compra) => {
+      table.rows.add(
+        compra.nombre,
+        req.body.nombreProveedor,
+        compra.cantidad,
+        compra.precio,
+        compra.descuento,
+        compra.iva,
+        compra.subtotal,
+        compra.total,
+        req.body.totalPagado,
+        req.body.vuelto
+      );
+    });
+
+    const request = connection.request();
+    request.input("Compras", table);
+    request.input("TotalPagado", totalPagado);
+    request.input("Vuelto", vuelto);
+    const result = await request.execute("RegistrarCompra");
+
+    connection.close();
+
+    res.status(201).json({ mensaje: "Compra registrada correctamente" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: "Error al registrar la venta" });
+  }
 });
 
 app.get("/api/Entradas", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query("SELECT * FROM Entradas");
+    const result = await pool.request().query("SELECT * FROM Compras");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
@@ -453,6 +512,10 @@ app.post("/api/GenerarSalida", async (req, res) => {
   try {
     // Crear una nueva instancia de conexión a la base de datos
     const connection = await sql.connect(dbConfig);
+    // Agregar logs para verificar los datos del frontend
+    // console.log("Ventas:", ventas);
+    // console.log("total Pagado:", totalPagado);
+    // console.log("Cambio:", vuelto);
 
     const table = new sql.Table("VentasType");
     table.create = true;
@@ -511,6 +574,7 @@ app.get("/api/Salidas", async (req, res) => {
   }
 });
 
+// REPORTES
 app.get("/api/CantidadProductos", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
@@ -740,6 +804,33 @@ app.get("/api/DetallesVenta/:id", async (req, res) => {
   }
 });
 
+//! detalles compras
+app.get("/api/DetallesCompra/:id", async (req, res) => {
+  const compraId = req.params.id;
+
+  try {
+    // Crear una nueva instancia de conexión a la base de datos
+    const pool = await sql.connect(dbConfig);
+
+    // Consulta SQL para obtener los detalles de la venta
+    const result = await pool
+      .request()
+      .input("compraId", sql.Int, compraId)
+      .query("SELECT * FROM DetalleCompras WHERE IdCompra = @compraId");
+
+    // Cerrar la conexión a la base de datos
+    pool.close();
+
+    // Enviar los datos de los detalles de la venta como respuesta
+    res.json(result.recordset);
+  } catch (error) {
+    console.error("Error al obtener los detalles de la compra:", error);
+    res
+      .status(500)
+      .json({ mensaje: "Error al obtener los detalles de la compra" });
+  }
+});
+
 //! stock
 app.get("/api/VerificarStock/:nombreProducto", async (req, res) => {
   const nombreProducto = req.params.nombreProducto;
@@ -796,6 +887,28 @@ app.get("/api/VerificarStockVenta/:nombreProducto", async (req, res) => {
     res.status(500).json({ mensaje: "Error al obtener el stock del producto" });
   }
 });
+app.get("/api/VerificarStockCompra/:nombreProducto", async (req, res) => {
+  const nombreProducto = req.params.nombreProducto;
+
+  try {
+    const pool = await sql.connect(dbConfig);
+    const result = await pool
+      .request()
+      .input("NombreProducto", sql.NVarChar(100), nombreProducto)
+      .query("SELECT Stock FROM Productos WHERE Nombre = @NombreProducto");
+
+    if (result.recordset.length === 0) {
+      // El producto no existe en la base de datos
+      res.status(404).json({ mensaje: "El producto no existe" });
+    } else {
+      const stock = result.recordset[0].Stock;
+      res.json({ stock });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: "Error al obtener el stock del producto" });
+  }
+});
 
 app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
   const ventaId = req.params.ventaId;
@@ -829,6 +942,41 @@ app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ mensaje: "Error al eliminar la venta" });
+  }
+});
+
+app.delete("/api/EliminarCompra/:compraId", async (req, res) => {
+  const compraId = req.params.compraId;
+
+  try {
+    const pool = await sql.connect(dbConfig);
+    await pool.request().input("CompraId", sql.Int, compraId).query(`
+      BEGIN TRANSACTION;
+      -- Obtener los detalles de la venta para devolver la cantidad al stock
+      DECLARE @Detalles AS dbo.ComprasType;
+      INSERT INTO @Detalles (NombreProducto, Cantidad)
+      SELECT Producto, Cantidad
+      FROM DetalleCompras
+      WHERE IdCompra = @CompraId;
+
+      -- Eliminar la compra
+      DELETE FROM Compras WHERE Codigo = @CompraId;
+      -- Eliminar los detalles de la venta
+      DELETE FROM DetalleCompras WHERE IdCompra = @CompraId;
+
+      -- Devolver la cantidad al stock
+      UPDATE Productos
+      SET Stock = Stock - d.Cantidad
+      FROM Productos p
+      JOIN @Detalles d ON p.Nombre = d.NombreProducto;
+      
+      COMMIT TRANSACTION;
+    `);
+
+    res.sendStatus(200); // Enviar una respuesta 200 OK si todo fue exitoso
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: "Error al eliminar la compra" });
   }
 });
 
