@@ -361,75 +361,6 @@ app.get("/api/ProductoPrecioVenta", async (req, res) => {
   }
 });
 
-// ENTRADAS - SALIDAS
-// app.post("/api/GenerarEntrada", (req, res) => {
-//   const {
-//     nombreProducto,
-//     nombreProveedor,
-//     cantidad,
-//     precio,
-//     subtotal,
-//     total,
-//     iva,
-//   } = req.body;
-
-//   // Crear una nueva instancia de conexión a la base de datos
-//   const connection = new sql.ConnectionPool(dbConfig);
-
-//   // Verificamos que se conecto a la BD de manera correcta
-//   connection.connect((err) => {
-//     if (err) {
-//       console.log(err);
-//       return res.status(500).json({ mensaje: "No se pudo conectar a la BD" });
-//     }
-
-//     if (
-//       !nombreProducto ||
-//       !nombreProveedor ||
-//       !cantidad ||
-//       !total ||
-//       !precio ||
-//       !subtotal ||
-//       !iva
-//     ) {
-//       return res
-//         .status(400)
-//         .json({ mensaje: "Todos los campos son necesarios" });
-//     }
-
-//     // Insertar nuevo CLIENTE en la base de datos
-//     const insertQuery = `
-//     DECLARE @NombreProducto VARCHAR(100);
-//     DECLARE @NombreProveedor VARCHAR(100);
-//     DECLARE @Cantidad INT;
-//     DECLARE @SubtotalCompra INT;
-//     DECLARE @TotalDineroGastado INT;
-//     DECLARE @PrecioCompra INT;
-//     DECLARE @IVA DECIMAL(10,2);
-
-//     SET @NombreProducto = '${nombreProducto}';
-//     SET @NombreProveedor = '${nombreProveedor}';
-//     SET @Cantidad = ${cantidad};
-//     SET @SubtotalCompra = ${subtotal};
-//     SET @TotalDineroGastado = ${total};
-//     SET @PrecioCompra = ${precio};
-//     SET @IVA = ${iva};
-
-//     EXEC RegistrarEntrada @NombreProducto, @NombreProveedor, @Cantidad, @PrecioCompra, @SubtotalCompra, @TotalDineroGastado, @IVA;`;
-
-//     connection.request().query(insertQuery, (err, result) => {
-//       if (err) {
-//         console.log(err);
-//         connection.close();
-//         return res.status(500).json({ mensaje: "Error en el query" });
-//       }
-
-//       connection.close();
-//       res.status(201).json({ mensaje: "Compra Registrada Correctamente" });
-//     });
-//   });
-// });
-
 app.post("/api/GenerarEntrada", async (req, res) => {
   const compras = req.body.productosEnVenta;
   const totalVenta = req.body.total;
@@ -613,7 +544,7 @@ app.get("/api/CantidadVentasRealizadas", async (req, res) => {
     // Realizamos la consulta para obtener todos los clientes
     const result = await pool
       .request()
-      .query("SELECT COUNT(*) AS TotalSalidas FROM Salidas;");
+      .query("SELECT COUNT(*) AS TotalSalidas FROM Ventas;");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
@@ -627,8 +558,8 @@ app.post("/api/reporte-ventas", async (req, res) => {
   //   console.log("Solicitud de reporte de ventas recibida");
   const { fechaInicio, fechaFin } = req.body;
 
-  console.log("Fecha de inicio recibida:", fechaInicio);
-  console.log("Fecha de fin recibida:", fechaFin);
+  // console.log("Fecha de inicio recibida:", fechaInicio);
+  // console.log("Fecha de fin recibida:", fechaFin);
 
   try {
     // Crea una nueva instancia de la conexión a la base de datos
@@ -645,9 +576,9 @@ app.post("/api/reporte-ventas", async (req, res) => {
     const query = `
       
 
-    SELECT IdSalida, NombreProducto, NombreCliente, Cantidad, TotalDineroIngresado, FechaSalida
-    FROM Salidas
-      WHERE FechaSalida >= @fechaInicial AND FechaSalida <= @fechaFinal;
+    SELECT Codigo, Fecha, Cliente, Vendedor, Total 
+    FROM Ventas
+      WHERE Fecha >= @fechaInicial AND Fecha <= @fechaFinal;
     `;
 
     // Crear un objeto de solicitud
@@ -672,7 +603,7 @@ app.post("/api/reporte-ventas", async (req, res) => {
   }
 });
 app.post("/api/reporte-compras", async (req, res) => {
-  //   console.log("Solicitud de reporte de compra recibida");
+  //   console.log("Solicitud de reporte de ventas recibida");
   const { fechaInicio, fechaFin } = req.body;
 
   // console.log("Fecha de inicio recibida:", fechaInicio);
@@ -691,9 +622,11 @@ app.post("/api/reporte-compras", async (req, res) => {
 
     // Consulta SQL para obtener los registros en el rango de fechas
     const query = `
-	  SELECT IdEntrada, NombreProducto, NombreProveedor, Cantidad, TotalDineroGastado, FechaEntrada
-    FROM Entradas
-      WHERE FechaEntrada >= @fechaInicial AND FechaEntrada <= @fechaFinal;
+      
+
+    SELECT Codigo, Fecha, Comprador, Proveedor, Total 
+    FROM Compras
+      WHERE Fecha >= @fechaInicial AND Fecha <= @fechaFinal;
     `;
 
     // Crear un objeto de solicitud
@@ -715,65 +648,6 @@ app.post("/api/reporte-compras", async (req, res) => {
     if (sql.connected) {
       sql.close();
     }
-  }
-});
-
-// Eliminar compras
-app.delete("/api/EliminarEntrada/:id", async (req, res) => {
-  const entradaId = req.params.id;
-
-  if (!entradaId) {
-    return res
-      .status(400)
-      .json({ mensaje: "Se requiere proporcionar el ID de la entrada" });
-  }
-
-  try {
-    const pool = await sql.connect(dbConfig);
-
-    // Verificar si la entrada existe antes de eliminarla
-    const verificarQuery = `SELECT IdEntrada, NombreProducto, Cantidad FROM Entradas WHERE IdEntrada = ${entradaId}`;
-    const verificarResult = await pool.request().query(verificarQuery);
-
-    if (verificarResult.recordset.length === 0) {
-      return res.status(404).json({ mensaje: "La entrada no existe" });
-    }
-
-    // Obtener los datos de la entrada eliminada
-    const { IdEntrada, NombreProducto, Cantidad } =
-      verificarResult.recordset[0];
-
-    // Obtener el producto asociado a la entrada eliminada
-    const productoQuery = `SELECT IdProducto, Stock FROM Productos WHERE Nombre = '${NombreProducto}'`;
-    const productoResult = await pool.request().query(productoQuery);
-
-    if (productoResult.recordset.length === 0) {
-      return res.status(404).json({ mensaje: "El producto no existe" });
-    }
-
-    // Eliminar la entrada de la base de datos
-    const eliminarQuery = `DELETE FROM Entradas WHERE IdEntrada = ${entradaId}`;
-    await pool.request().query(eliminarQuery);
-
-    // Actualizar el stock del producto
-    const productoId = productoResult.recordset[0].IdProducto;
-    const stockActual = productoResult.recordset[0].Stock;
-    const nuevoStock = stockActual - Cantidad;
-
-    const actualizarStockQuery = `UPDATE Productos SET Stock = ${nuevoStock} WHERE IdProducto = ${productoId}`;
-    await pool.request().query(actualizarStockQuery);
-
-    // Obtener la lista actualizada de entradas
-    const entradasQuery = "SELECT * FROM Entradas";
-    const entradasResult = await pool.request().query(entradasQuery);
-    const entradas = entradasResult.recordset;
-
-    res
-      .status(200)
-      .json({ mensaje: "La compra ha sido eliminada exitosamente", entradas });
-  } catch (error) {
-    console.error("Error al eliminar la entrada:", error);
-    res.status(500).json({ mensaje: "Error del servidor" });
   }
 });
 
