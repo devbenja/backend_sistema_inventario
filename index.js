@@ -9,9 +9,9 @@ const port = 5000;
 // Configuración de conexión a SQL Server
 const dbConfig = {
   server: "localhost",
-  database: "prueba2",
-  user: "sa",
-  password: "1234",
+  database: "INVENTARIO",
+  user: "prueba",
+  password: "123",
   trustServerCertificate: true,
   options: {
     trustedConnection: true,
@@ -277,7 +277,7 @@ app.get("/api/Productos", async (req, res) => {
 });
 
 app.post("/api/CrearProducto", (req, res) => {
-  const { nombreProducto, descripcion } = req.body;
+  const { nombreProducto, descripcion, precioCompra, precioVenta } = req.body;
 
   // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
@@ -303,6 +303,72 @@ app.post("/api/CrearProducto", (req, res) => {
       res.status(201).json({ mensaje: "Producto creado correctamente" });
     });
   });
+});
+
+app.post("/api/DeleteProducto", (req, res) => {
+  const { id } = req.body;
+
+  const connection = new sql.ConnectionPool(dbConfig);
+
+  connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
+    }
+    const insertQuery = `DELETE FROM Productos WHERE IdProducto = ${id}`;
+
+    connection.request().query(insertQuery, (err, result) => {
+      if (err) {
+        console.log(err);
+        connection.close();
+        return res.status(500).json({ mensaje: "Error en el query" });
+      }
+
+      connection.close();
+      res.status(201).json({ mensaje: "Producto eliminado correctamente" });
+      console.log(`Producto con id ${id}, eliminado correctamente`);
+    });
+  });
+});
+
+app.put("/api/ActualizarProducto/:id", async (req, res) => {
+  try {
+    const { id } = req.params; // Obtener el ID del producto de los parámetros de la solicitud
+    const { nombreProducto, descrip, precioCompra, precioVenta } = req.body; // Obtener los nuevos valores del producto de la solicitud
+
+    const pool = await sql.connect(dbConfig);
+
+    // Obtener los datos actuales del cliente desde la base de datos
+    const queryProducto = "SELECT * FROM Productos WHERE IdProducto = @IdProducto";
+    const resultProducto = await pool
+      .request()
+      .input("IdProducto", id)
+      .query(queryProducto);
+    const productoActual = resultProducto.recordset[0];
+
+    // Verificar si los campos están vacíos y usar los valores actuales en su lugar
+    const nombreActual = nombreProducto || productoActual.Nombre;
+    const descripActual = descrip || productoActual.Descripcion;
+    const precioCompraActual = precioCompra || productoActual.PrecioCompra;
+    const precioVentaActual = precioVenta || productoActual.PrecioVenta;
+
+    // Actualizar el cliente en la base de datos
+    const queryActualizar =
+      "UPDATE Productos SET Nombre = @Nombre, Descripcion = @Descripcion, PrecioCompra = @PrecioCompra , PrecioVenta = @PrecioVenta WHERE IdProducto = @IdProducto";
+    const resultActualizar = await pool
+      .request()
+      .input("IdProducto", id)
+      .input("Nombre", nombreActual)
+      .input("Descripcion", descripActual)
+      .input("PrecioCompra", precioCompraActual)
+      .input("PrecioVenta", precioVentaActual)
+      .query(queryActualizar);
+
+    res.json({ message: `Producto actualizado correctamente` });
+  } catch (error) {
+    console.error("Error al actualizar el producto:", error);
+    res.status(500).send("Error del servidor");
+  }
 });
 
 app.get("/api/ProductoPrecioCompra", async (req, res) => {
@@ -360,6 +426,8 @@ app.get("/api/ProductoPrecioVenta", async (req, res) => {
     sql.close();
   }
 });
+
+// PROCEDIMIENTOS
 
 app.post("/api/GenerarEntrada", async (req, res) => {
   const compras = req.body.productosEnVenta;
