@@ -9,9 +9,9 @@ const port = 5000;
 // Configuración de conexión a SQL Server
 const dbConfig = {
   server: "localhost",
-  database: "INVENTARIO",
-  user: "prueba",
-  password: "123",
+  database: "prueba2",
+  user: "sa",
+  password: "1234",
   trustServerCertificate: true,
   options: {
     trustedConnection: true,
@@ -339,7 +339,8 @@ app.put("/api/ActualizarProducto/:id", async (req, res) => {
     const pool = await sql.connect(dbConfig);
 
     // Obtener los datos actuales del cliente desde la base de datos
-    const queryProducto = "SELECT * FROM Productos WHERE IdProducto = @IdProducto";
+    const queryProducto =
+      "SELECT * FROM Productos WHERE IdProducto = @IdProducto";
     const resultProducto = await pool
       .request()
       .input("IdProducto", id)
@@ -569,6 +570,44 @@ app.get("/api/Salidas", async (req, res) => {
   } catch (error) {
     // Caso contrario nos manda el error del porque no se puede
     console.error("Error al obtener Entradas:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
+
+app.get("/api/ClientesConTotalGastado", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+
+    const query = `
+      SELECT
+        C.IdCliente,
+        C.NombreCliente,
+        C.TelefonoCliente,
+        C.CorreoCliente,
+        C.DireccionCliente,
+        ISNULL(SUM(V.Total), 0) AS TotalGastado
+      FROM
+        Clientes C
+      LEFT JOIN
+        Ventas V ON C.NombreCliente = V.Cliente
+      GROUP BY
+        C.IdCliente,
+        C.NombreCliente,
+        C.TelefonoCliente,
+        C.CorreoCliente,
+        C.DireccionCliente
+      ORDER BY
+        TotalGastado DESC;
+    `;
+
+    const result = await pool.request().query(query);
+    res.send(result.recordset);
+    // console.log(query);
+  } catch (error) {
+    console.error(
+      "Error al obtener la lista de clientes con total gastado:",
+      error
+    );
     res.status(500).send("Error del servidor");
   }
 });
