@@ -1160,7 +1160,7 @@ app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
 //     res.status(500).json({ mensaje: "Error al eliminar la compra" });
 //   }
 // });
-//! funciona god
+//! funciona
 app.delete("/api/EliminarCompra/:compraId", async (req, res) => {
   const compraId = req.params.compraId;
 
