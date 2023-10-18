@@ -9,7 +9,7 @@ const port = 5000;
 // Configuración de conexión a SQL Server
 const dbConfig = {
   server: "localhost",
-  database: "INVENT",
+  database: "INVENTARIO",
   user: "prueba",
   password: "123",
   trustServerCertificate: true,
@@ -29,6 +29,37 @@ app.get("/api/Clientes", async (req, res) => {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
     const result = await pool.request().query("SELECT * FROM Clientes");
+    // El response va contener todos los datos que se obtuvieron de la BD
+    res.send(result.recordset);
+  } catch (error) {
+    // Caso contrario nos manda el error del porque no se puede
+    console.error("Error al obtener elementos:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
+//!
+app.get("/api/UnidadesMedida", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+    // Realizamos la consulta para obtener todos los clientes
+    const result = await pool.request().query("SELECT * FROM UnidadesDeMedida");
+    // El response va contener todos los datos que se obtuvieron de la BD
+    res.send(result.recordset);
+  } catch (error) {
+    // Caso contrario nos manda el error del porque no se puede
+    console.error("Error al obtener elementos:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
+app.get("/api/TiposTransaccion", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+    // Realizamos la consulta para obtener todos los clientes
+    const result = await pool
+      .request()
+      .query(
+        "SELECT Id, Nombre FROM TiposDeTransaccion WHERE Nombre <> 'Compra'"
+      );
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
@@ -339,7 +370,8 @@ app.put("/api/ActualizarProducto/:id", async (req, res) => {
     const pool = await sql.connect(dbConfig);
 
     // Obtener los datos actuales del cliente desde la base de datos
-    const queryProducto = "SELECT * FROM Productos WHERE IdProducto = @IdProducto";
+    const queryProducto =
+      "SELECT * FROM Productos WHERE IdProducto = @IdProducto";
     const resultProducto = await pool
       .request()
       .input("IdProducto", id)
@@ -434,12 +466,14 @@ app.post("/api/GenerarEntrada", async (req, res) => {
   const totalVenta = req.body.total;
   const totalPagado = req.body.totalPagado;
   const vuelto = req.body.vuelto;
+  // const tipoTransaccion = req.body.tipoTransaccion;
+  // const UnidadMedida = req.body.unidadMedida;
 
   try {
     // Crear una nueva instancia de conexión a la base de datos
     const connection = await sql.connect(dbConfig);
     // Agregar logs para verificar los datos del frontend
-    // console.log("Ventas:", compras);
+    // console.log("compras:", compras);
     // console.log("total Pagado:", totalPagado);
     // console.log("Cambio:", vuelto);
 
@@ -457,6 +491,12 @@ app.post("/api/GenerarEntrada", async (req, res) => {
     table.columns.add("Total", sql.Decimal(10, 2), { nullable: false });
     table.columns.add("TotalPagado", sql.Decimal(10, 2), { nullable: false }); // Agregar la columna TotalPagado
     table.columns.add("Vuelto", sql.Decimal(10, 2), { nullable: false }); // Agregar la columna Vuelto
+    table.columns.add("UnidadDeMedida", sql.NVarChar(100), {
+      nullable: false,
+    }); // Agrega la columna UnidadDeMedidaID
+    table.columns.add("TipoTransaccion", sql.NVarChar(100), {
+      nullable: false,
+    }); // Agrega la columna TipoTransaccionID
 
     compras.forEach((compra) => {
       table.rows.add(
@@ -469,7 +509,10 @@ app.post("/api/GenerarEntrada", async (req, res) => {
         compra.subtotal,
         compra.total,
         req.body.totalPagado,
-        req.body.vuelto
+        req.body.vuelto,
+        compra.UnidadDeMedida, // Agrega unidad de medida
+
+        compra.tipoTransaccion // Agrega tipo de transacción
       );
     });
 
@@ -477,6 +520,8 @@ app.post("/api/GenerarEntrada", async (req, res) => {
     request.input("Compras", table);
     request.input("TotalPagado", totalPagado);
     request.input("Vuelto", vuelto);
+    // request.input("UnidadDeMedida", sql.NVarChar(100), UnidadMedida); // Reemplaza "Cajas" con el valor real desde tu objeto de ventas
+    // request.input("TipoTransaccion", sql.NVarChar(100), tipoTransaccion); // Reemplaza "Venta" con el valor real desde tu objeto de ventas
     const result = await request.execute("RegistrarCompra");
 
     connection.close();
@@ -507,6 +552,8 @@ app.post("/api/GenerarSalida", async (req, res) => {
   const totalVenta = req.body.total;
   const totalPagado = req.body.totalPagado;
   const vuelto = req.body.vuelto;
+  // const tipoTransaccion = req.body.tipoTransaccion;
+  // const UnidadMedida = req.body.unidadMedida;
 
   try {
     // Crear una nueva instancia de conexión a la base de datos
@@ -515,6 +562,7 @@ app.post("/api/GenerarSalida", async (req, res) => {
     // console.log("Ventas:", ventas);
     // console.log("total Pagado:", totalPagado);
     // console.log("Cambio:", vuelto);
+    // console.log("tipo de venta", tipoTransaccion);
 
     const table = new sql.Table("VentasType");
     table.create = true;
@@ -528,8 +576,15 @@ app.post("/api/GenerarSalida", async (req, res) => {
     table.columns.add("Total", sql.Decimal(10, 2), { nullable: false });
     table.columns.add("TotalPagado", sql.Decimal(10, 2), { nullable: false }); // Agregar la columna TotalPagado
     table.columns.add("Vuelto", sql.Decimal(10, 2), { nullable: false }); // Agregar la columna Vuelto
+    table.columns.add("UnidadDeMedida", sql.NVarChar(100), {
+      nullable: false,
+    }); // Agrega la columna UnidadDeMedidaID
+    table.columns.add("TipoTransaccion", sql.NVarChar(100), {
+      nullable: false,
+    }); // Agrega la columna TipoTransaccionID
 
     ventas.forEach((venta) => {
+      // console.log("Unidad de Medida existe?:", venta.UnidadDeMedida); // Agrega este log
       table.rows.add(
         venta.nombre,
         req.body.nombreCliente,
@@ -540,7 +595,10 @@ app.post("/api/GenerarSalida", async (req, res) => {
         venta.subtotal,
         venta.total,
         req.body.totalPagado,
-        req.body.vuelto
+        req.body.vuelto,
+        venta.UnidadDeMedida, // Agrega unidad de medida
+
+        venta.tipoTransaccion // Agrega tipo de transacción
       );
     });
 
@@ -548,6 +606,9 @@ app.post("/api/GenerarSalida", async (req, res) => {
     request.input("Ventas", table);
     request.input("TotalPagado", totalPagado);
     request.input("Vuelto", vuelto);
+    // request.input("UnidadDeMedida", sql.NVarChar(100), UnidadMedida); // Reemplaza "Cajas" con el valor real desde tu objeto de ventas
+    // request.input("TipoTransaccion", sql.NVarChar(100), tipoTransaccion); // Reemplaza "Venta" con el valor real desde tu objeto de ventas
+
     const result = await request.execute("RegistrarSalida33");
 
     connection.close();
@@ -569,6 +630,82 @@ app.get("/api/Salidas", async (req, res) => {
   } catch (error) {
     // Caso contrario nos manda el error del porque no se puede
     console.error("Error al obtener Entradas:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
+
+app.get("/api/ClientesConTotalGastado", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+
+    const query = `
+      SELECT
+        C.IdCliente,
+        C.NombreCliente,
+        C.TelefonoCliente,
+        C.CorreoCliente,
+        C.DireccionCliente,
+        ISNULL(SUM(V.Total), 0) AS TotalGastado
+      FROM
+        Clientes C
+      LEFT JOIN
+        Ventas V ON C.NombreCliente = V.Cliente
+      GROUP BY
+        C.IdCliente,
+        C.NombreCliente,
+        C.TelefonoCliente,
+        C.CorreoCliente,
+        C.DireccionCliente
+      ORDER BY
+        TotalGastado DESC;
+    `;
+
+    const result = await pool.request().query(query);
+    res.send(result.recordset);
+    // console.log(query);
+  } catch (error) {
+    console.error(
+      "Error al obtener la lista de clientes con total gastado:",
+      error
+    );
+    res.status(500).send("Error del servidor");
+  }
+});
+app.get("/api/ProveedoresConTotalGastado", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+
+    const query = `
+      SELECT
+        P.IdProveedor,
+        P.NombreProveedor,
+        P.TelefonoProveedor,
+        P.DireccionProveedor,
+        P.CorreoProveedor,
+        P.Pais,
+        ISNULL(SUM(CM.Total), 0) AS TotalGastado
+      FROM
+        Proveedores P
+      LEFT JOIN
+        Compras CM ON P.NombreProveedor = CM.Proveedor
+      GROUP BY
+        P.IdProveedor,
+        P.NombreProveedor,
+        P.TelefonoProveedor,
+        P.DireccionProveedor,
+        P.CorreoProveedor,
+        P.Pais
+      ORDER BY
+        TotalGastado DESC;
+    `;
+
+    const result = await pool.request().query(query);
+    res.send(result.recordset);
+  } catch (error) {
+    console.error(
+      "Error al obtener la lista de proveedores con total gastado:",
+      error
+    );
     res.status(500).send("Error del servidor");
   }
 });
@@ -852,6 +989,94 @@ app.get("/api/VerificarStockCompra/:nombreProducto", async (req, res) => {
   }
 });
 
+//! funciona
+// app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
+//   const ventaId = req.params.ventaId;
+
+//   try {
+//     const pool = await sql.connect(dbConfig);
+//     await pool.request().input("VentaId", sql.Int, ventaId).query(`
+//       BEGIN TRANSACTION;
+//       -- Obtener los detalles de la venta para devolver la cantidad al stock
+//       DECLARE @Detalles AS dbo.VentasType;
+//       INSERT INTO @Detalles (NombreProducto, Cantidad)
+//       SELECT Producto, Cantidad
+//       FROM DetalleVentas
+//       WHERE IdVenta = @VentaId;
+
+//       -- Eliminar la venta
+//       DELETE FROM Ventas WHERE Codigo = @VentaId;
+//       -- Eliminar los detalles de la venta
+//       DELETE FROM DetalleVentas WHERE IdVenta = @VentaId;
+
+//       -- Devolver la cantidad al stock
+//       UPDATE Productos
+//       SET Stock = Stock + d.Cantidad
+//       FROM Productos p
+//       JOIN @Detalles d ON p.Nombre = d.NombreProducto;
+
+//       COMMIT TRANSACTION;
+//     `);
+
+//     res.sendStatus(200); // Enviar una respuesta 200 OK si todo fue exitoso
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ mensaje: "Error al eliminar la venta" });
+//   }
+// });
+
+//!
+// app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
+//   const ventaId = req.params.ventaId;
+
+//   try {
+//     const pool = await sql.connect(dbConfig);
+//     await pool.request().input("VentaId", sql.Int, ventaId).query(`
+//       BEGIN TRANSACTION;
+//       -- Obtener los detalles de la venta para devolver la cantidad al stock
+//       DECLARE @Detalles AS dbo.VentasType;
+//       INSERT INTO @Detalles (NombreProducto, Cantidad)
+//       SELECT Producto, Cantidad
+//       FROM DetalleVentas
+//       WHERE IdVenta = @VentaId;
+
+//       -- Eliminar la venta
+//       DELETE FROM Ventas WHERE Codigo = @VentaId;
+//       -- Eliminar los detalles de la venta
+//       DELETE FROM DetalleVentas WHERE IdVenta = @VentaId;
+
+//       -- Devolver la cantidad al stock de producto
+//       UPDATE Productos
+//       SET Stock = Stock + d.Cantidad
+//       FROM Productos p
+//       JOIN @Detalles d ON p.Nombre = d.NombreProducto;
+
+//       -- Actualizar la cantidad de salida
+//       UPDATE Inventario
+//       SET CantidadSalida = CantidadSalida - (
+//         SELECT SUM(Cantidad)
+//         FROM @Detalles
+//       );
+
+//       -- Devolver la cantidad al stock de inventario
+//       UPDATE Inventario
+//       SET Stock = Stock + (
+//         SELECT SUM(Cantidad)
+//         FROM @Detalles
+//       );
+
+//       COMMIT TRANSACTION;
+//     `);
+
+//     res.sendStatus(200); // Enviar una respuesta 200 OK si todo fue exitoso
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ mensaje: "Error al eliminar la venta" });
+//   }
+// });
+
+//!
+
 app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
   const ventaId = req.params.ventaId;
 
@@ -871,12 +1096,24 @@ app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
       -- Eliminar los detalles de la venta
       DELETE FROM DetalleVentas WHERE IdVenta = @VentaId;
 
-      -- Devolver la cantidad al stock
+      -- Devolver la cantidad al stock de producto
       UPDATE Productos
       SET Stock = Stock + d.Cantidad
       FROM Productos p
       JOIN @Detalles d ON p.Nombre = d.NombreProducto;
-      
+
+      -- Actualizar la cantidad de salida solo para los productos en @Detalles
+      UPDATE Inventario
+      SET CantidadSalida = CantidadSalida - d.Cantidad
+      FROM Inventario i
+      JOIN @Detalles d ON i.Nombre = d.NombreProducto;
+
+      -- Devolver la cantidad al stock de inventario
+      UPDATE Inventario
+      SET Stock = Stock + d.Cantidad
+      FROM Inventario i
+      JOIN @Detalles d ON i.Nombre = d.NombreProducto;
+
       COMMIT TRANSACTION;
     `);
 
@@ -887,6 +1124,43 @@ app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
   }
 });
 
+//! esta bueno, pero no actualiza la entrada
+
+// app.delete("/api/EliminarCompra/:compraId", async (req, res) => {
+//   const compraId = req.params.compraId;
+
+//   try {
+//     const pool = await sql.connect(dbConfig);
+//     await pool.request().input("CompraId", sql.Int, compraId).query(`
+//       BEGIN TRANSACTION;
+//       -- Obtener los detalles de la venta para devolver la cantidad al stock
+//       DECLARE @Detalles AS dbo.ComprasType;
+//       INSERT INTO @Detalles (NombreProducto, Cantidad)
+//       SELECT Producto, Cantidad
+//       FROM DetalleCompras
+//       WHERE IdCompra = @CompraId;
+
+//       -- Eliminar la compra
+//       DELETE FROM Compras WHERE Codigo = @CompraId;
+//       -- Eliminar los detalles de la venta
+//       DELETE FROM DetalleCompras WHERE IdCompra = @CompraId;
+
+//       -- Devolver la cantidad al stock
+//       UPDATE Productos
+//       SET Stock = Stock - d.Cantidad
+//       FROM Productos p
+//       JOIN @Detalles d ON p.Nombre = d.NombreProducto;
+
+//       COMMIT TRANSACTION;
+//     `);
+
+//     res.sendStatus(200); // Enviar una respuesta 200 OK si todo fue exitoso
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ mensaje: "Error al eliminar la compra" });
+//   }
+// });
+//! funciona
 app.delete("/api/EliminarCompra/:compraId", async (req, res) => {
   const compraId = req.params.compraId;
 
@@ -894,7 +1168,7 @@ app.delete("/api/EliminarCompra/:compraId", async (req, res) => {
     const pool = await sql.connect(dbConfig);
     await pool.request().input("CompraId", sql.Int, compraId).query(`
       BEGIN TRANSACTION;
-      -- Obtener los detalles de la venta para devolver la cantidad al stock
+      -- Obtener los detalles de la compra para devolver la cantidad al stock
       DECLARE @Detalles AS dbo.ComprasType;
       INSERT INTO @Detalles (NombreProducto, Cantidad)
       SELECT Producto, Cantidad
@@ -903,15 +1177,27 @@ app.delete("/api/EliminarCompra/:compraId", async (req, res) => {
 
       -- Eliminar la compra
       DELETE FROM Compras WHERE Codigo = @CompraId;
-      -- Eliminar los detalles de la venta
+      -- Eliminar los detalles de la compra
       DELETE FROM DetalleCompras WHERE IdCompra = @CompraId;
 
-      -- Devolver la cantidad al stock
+      -- Devolver la cantidad al stock del producto
       UPDATE Productos
       SET Stock = Stock - d.Cantidad
       FROM Productos p
       JOIN @Detalles d ON p.Nombre = d.NombreProducto;
-      
+
+      -- Devolver la cantidad al stock de inventario
+      UPDATE Inventario
+      SET Stock = Stock - d.Cantidad
+      FROM Inventario i
+      JOIN @Detalles d ON i.Nombre = d.NombreProducto;
+
+      -- Actualizar la cantidad de entrada solo para los productos en @Detalles
+      UPDATE Inventario
+      SET CantidadEntrada = CantidadEntrada - d.Cantidad
+      FROM Inventario i
+      JOIN @Detalles d ON i.Nombre = d.NombreProducto;
+
       COMMIT TRANSACTION;
     `);
 
@@ -919,6 +1205,20 @@ app.delete("/api/EliminarCompra/:compraId", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ mensaje: "Error al eliminar la compra" });
+  }
+});
+
+app.get("/api/Inventario", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+    // Realizamos la consulta para obtener todos los clientes
+    const result = await pool.request().query("SELECT * FROM Inventario");
+    // El response va contener todos los datos que se obtuvieron de la BD
+    res.send(result.recordset);
+  } catch (error) {
+    // Caso contrario nos manda el error del porque no se puede
+    console.error("Error al obtener Entradas:", error);
+    res.status(500).send("Error del servidor");
   }
 });
 
