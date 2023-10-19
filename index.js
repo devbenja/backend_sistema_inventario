@@ -9,9 +9,9 @@ const port = 5000;
 // Configuración de conexión a SQL Server
 const dbConfig = {
   server: "localhost",
-  database: "prueba2",
-  user: "sa",
-  password: "1234",
+  database: "INVENTARIO",
+  user: "prueba",
+  password: "123",
   trustServerCertificate: true,
   options: {
     trustedConnection: true,
@@ -1527,3 +1527,208 @@ app.get("/api/Inventario", async (req, res) => {
 app.listen(port, () => {
   console.log(`Servidor escuchando en http://localhost:${port}`);
 });
+
+// CRUD UNIDADES DE MEDIDA
+
+app.get("/api/UnidadesDeMedida", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+  
+    const result = await pool.request().query("SELECT * FROM UnidadesDeMedida");
+    
+    res.send(result.recordset);
+  } catch (error) {
+    
+    console.error("Error al obtener Unidades de Medida:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
+
+app.post("/api/CrearUnidadDeMedida", (req, res) => {
+  const { nombreUnidad }= req.body;
+
+  const connection = new sql.ConnectionPool(dbConfig);
+
+  connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ mensaje: "Error interno del servidor 1 - Conexion BD" });
+    }
+    const insertQuery = `INSERT INTO UnidadesDeMedida (Nombre) VALUES ('${nombreUnidad}')`;
+
+    connection.request().query(insertQuery, (err, result) => {
+      if (err) {
+        console.log(err);
+        connection.close();
+        return res
+          .status(500)
+          .json({ mensaje: "Error interno del servidor 3 - En el query" });
+      }
+
+      connection.close();
+      res.status(201).json({ mensaje: "Unidad de Medida creada correctamente" });
+      console.log(`Unidad de medida: ${nombreUnidad}, creada correctamente`);
+    });
+  });
+});
+
+app.put("/api/ActualizarUnidadDeMedida/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombreUnidad } = req.body; 
+
+    const pool = await sql.connect(dbConfig);
+
+    const queryUnidadDeMedida =
+      "SELECT * FROM UnidadesDeMedida WHERE ID = @ID";
+    const resultUnidadDeMedida = await pool
+      .request()
+      .input("ID", id)
+      .query(queryUnidadDeMedida);
+    const unidadActual = resultUnidadDeMedida.recordset[0];
+
+    const nombreActual = nombreUnidad || unidadActual.Nombre;
+    
+    const queryActualizar =
+      "UPDATE UnidadesDeMedida SET Nombre = @Nombre WHERE ID = @ID";
+    const resultActualizar = await pool
+      .request()
+      .input("ID", id)
+      .input("Nombre", nombreActual)
+      .query(queryActualizar);
+
+    res.json({ message: "Unidad de Medida actualizada correctamente" });
+  } catch (error) {
+    console.error("Error al actualizar la unidad de medida:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
+
+app.delete("/api/DeleteUnidadDeMedida/:id", (req, res) => {
+  const { id } = req.params;
+
+  const connection = new sql.ConnectionPool(dbConfig);
+
+  connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
+    }
+    const insertQuery = `DELETE FROM UnidadesDeMedida WHERE ID = ${id}`;
+
+    connection.request().query(insertQuery, (err, result) => {
+      if (err) {
+        console.log(err);
+        connection.close();
+        return res.status(500).json({ mensaje: "Error en el query" });
+      }
+
+      connection.close();
+      res.status(201).json({ mensaje: "Unida de medida eliminada correctamente" });
+      console.log(`Unidad de medida con id ${id}, eliminada correctamente`);
+    });
+  });
+});
+
+// CRUD TRANSACCIONES
+
+app.get("/api/TiposDeTransacciones", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+  
+    const result = await pool.request().query("SELECT * FROM TiposDeTransaccion");
+    
+    res.send(result.recordset);
+  } catch (error) {
+    
+    console.error("Error al obtener tipos de transacciones", error);
+    res.status(500).send("Error del servidor");
+  }
+});
+
+app.post("/api/CrearTipoDeTransaccion", (req, res) => {
+  const { nombreTransaccion }= req.body;
+
+  const connection = new sql.ConnectionPool(dbConfig);
+
+  connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ mensaje: "Error interno del servidor 1 - Conexion BD" });
+    }
+    const insertQuery = `INSERT INTO TiposDeTransaccion (Nombre) VALUES ('${nombreTransaccion}')`;
+
+    connection.request().query(insertQuery, (err, result) => {
+      if (err) {
+        console.log(err);
+        connection.close();
+        return res
+          .status(500)
+          .json({ mensaje: "Error interno del servidor 3 - En el query" });
+      }
+
+      connection.close();
+      res.status(201).json({ mensaje: "Tipo de transaccion creada correctamente" });
+      console.log(`Tipo de transaccion: ${nombreTransaccion}, creada correctamente`);
+    });
+  });
+});
+
+app.put("/api/ActualizarTiposDeTransaccion/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombreTransaccion } = req.body; 
+
+    const pool = await sql.connect(dbConfig);
+
+    const queryTipoDeTransaccion =
+      "SELECT * FROM TiposDeTransaccion WHERE ID = @ID";
+    const resultTipoDeTransaccion = await pool
+      .request()
+      .input("ID", id)
+      .query(queryTipoDeTransaccion);
+    const transaccionActual = resultTipoDeTransaccion.recordset[0];
+
+    const nombreActual = nombreTransaccion || transaccionActual.Nombre;
+    
+    const queryActualizar =
+      "UPDATE TiposDeTransaccion SET Nombre = @Nombre WHERE ID = @ID";
+    const resultActualizar = await pool
+      .request()
+      .input("ID", id)
+      .input("Nombre", nombreActual)
+      .query(queryActualizar);
+
+    res.json({ message: "Tipo De Transaccion actualizada correctamente" });
+  } catch (error) {
+    console.error("Error al actualizar el tipo de transaccion:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
+
+app.delete("/api/DeleteTipoDeTransaccion/:id", (req, res) => {
+  const { id } = req.params;
+
+  const connection = new sql.ConnectionPool(dbConfig);
+
+  connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
+    }
+    const insertQuery = `DELETE FROM TiposDeTransaccion WHERE ID = ${id}`;
+
+    connection.request().query(insertQuery, (err, result) => {
+      if (err) {
+        console.log(err);
+        connection.close();
+        return res.status(500).json({ mensaje: "Error en el query" });
+      }
+
+      connection.close();
+      res.status(201).json({ mensaje: "Tipo de transaccion eliminada correctamente" });
+      console.log(`Tipo de transaccion con id ${id}, eliminada correctamente`);
+    });
+  });
+});
+
