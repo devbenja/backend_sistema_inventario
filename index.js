@@ -1696,3 +1696,52 @@ app.get("/api/VentasPorDia", async (req, res) => {
     res.status(500).send("Error del servidor");
   }
 });
+
+app.get("/api/TopProductos", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+    const result = await pool.request().query(`
+      SELECT TOP 3 
+        dv.Producto AS nombre,
+        SUM(dv.cantidad) AS ventas
+      FROM 
+        DetalleVentas dv
+      GROUP BY 
+        dv.Producto
+      ORDER BY 
+        ventas DESC
+    `);
+    res.send(result.recordset);
+  } catch (error) {
+    console.error(
+      "Error al obtener el Top 3 de productos más vendidos:",
+      error
+    );
+    res.status(500).send("Error del servidor");
+  }
+});
+app.get("/api/VentasMensuales", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+    const result = await pool.request().query(`
+    SELECT 
+    MONTH(v.Fecha) AS Mes,
+    YEAR(v.Fecha) AS Año,
+    COUNT(DISTINCT v.Codigo) AS Ventas
+FROM 
+    Ventas v
+JOIN
+    DetalleVentas dv ON v.Codigo = dv.IdVenta
+GROUP BY 
+    MONTH(v.Fecha), YEAR(v.Fecha)
+ORDER BY 
+    Año, Mes
+
+
+    `);
+    res.send(result.recordset);
+  } catch (error) {
+    console.error("Error al obtener las ventas del mes:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
