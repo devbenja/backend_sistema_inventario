@@ -9,9 +9,9 @@ const port = 5000;
 // Configuración de conexión a SQL Server
 const dbConfig = {
   server: "localhost",
-  database: "INVENTARIO",
-  user: "prueba",
-  password: "123",
+  database: "prueba2",
+  user: "sa",
+  password: "1234",
   trustServerCertificate: true,
   options: {
     trustedConnection: true,
@@ -127,7 +127,7 @@ app.post("/api/CrearCliente", (req, res) => {
 
       connection.close();
       res.status(201).json({ mensaje: "Cliente registrado correctamente" });
-      console.log(`Cliente: ${nombreCliente}, creado correctamente`);
+      // console.log(`Cliente: ${nombreCliente}, creado correctamente`);
     });
   });
 });
@@ -183,18 +183,45 @@ app.post("/api/DeleteCliente", (req, res) => {
       console.log(err);
       return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
     }
-    const insertQuery = `DELETE FROM Clientes WHERE IdCliente = ${id}`;
 
-    connection.request().query(insertQuery, (err, result) => {
+    // Consultar si hay referencias en Ventas
+    const checkReferencesQuery = `
+      SELECT TOP 1 1
+      FROM Ventas
+      WHERE IdCliente = ${id}
+    `;
+
+    connection.request().query(checkReferencesQuery, (err, result) => {
       if (err) {
         console.log(err);
         connection.close();
         return res.status(500).json({ mensaje: "Error en el query" });
       }
 
-      connection.close();
-      res.status(201).json({ mensaje: "Cliente eliminado correctamente" });
-      console.log(`Cliente con id ${id}, eliminado correctamente`);
+      if (result.recordset.length > 0) {
+        connection.close();
+        return res.status(400).json({
+          mensaje:
+            "No se puede eliminar este cliente porque tiene ventas asociadas.",
+        });
+      }
+
+      // Si no hay referencias, proceder con la eliminación
+      const deleteQuery = `DELETE FROM Clientes WHERE IdCliente = ${id}`;
+
+      connection.request().query(deleteQuery, (err, result) => {
+        if (err) {
+          console.log(err);
+          connection.close();
+          return res
+            .status(500)
+            .json({ mensaje: "Error al eliminar el cliente" });
+        }
+
+        connection.close();
+        res.status(201).json({ mensaje: "Cliente eliminado correctamente" });
+        // console.log(`Cliente con id ${id}, eliminado correctamente`);
+      });
     });
   });
 });
@@ -243,7 +270,7 @@ app.post("/api/CrearProveedor", (req, res) => {
 
       connection.close();
       res.status(201).json({ mensaje: "Proveedor creado correctamente" });
-      console.log(`Cliente: ${nombreProveedor}, creado correctamente`);
+      // console.log(`Cliente: ${nombreProveedor}, creado correctamente`);
     });
   });
 });
@@ -308,18 +335,45 @@ app.delete("/api/DeleteProveedor/:id", (req, res) => {
       console.log(err);
       return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
     }
-    const insertQuery = `DELETE FROM Proveedores WHERE IdProveedor = ${id}`;
 
-    connection.request().query(insertQuery, (err, result) => {
+    const checkReferencesQuery = `
+      SELECT TOP 1 1
+      FROM Compras
+      WHERE IdProveedor = ${id}
+    `;
+
+    connection.request().query(checkReferencesQuery, (err, result) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res.status(500).json({ mensaje: "Error en el query" });
+        return res
+          .status(500)
+          .json({ mensaje: "Error en la consulta de referencias" });
       }
 
-      connection.close();
-      res.status(201).json({ mensaje: "Proveedor eliminado correctamente" });
-      console.log(`Proveedor con id ${id}, eliminado correctamente`);
+      if (result.recordset.length > 0) {
+        connection.close();
+        return res.status(400).json({
+          mensaje:
+            "No se puede eliminar este proveedor porque está referenciado en Compras.",
+        });
+      }
+
+      const deleteQuery = `DELETE FROM Proveedores WHERE IdProveedor = ${id}`;
+
+      connection.request().query(deleteQuery, (err, result) => {
+        if (err) {
+          console.log(err);
+          connection.close();
+          return res
+            .status(500)
+            .json({ mensaje: "Error al eliminar el proveedor" });
+        }
+
+        connection.close();
+        res.status(201).json({ mensaje: "Proveedor eliminado correctamente" });
+        // console.log(`Proveedor con id ${id}, eliminado correctamente`);
+      });
     });
   });
 });
@@ -339,43 +393,6 @@ app.get("/api/Productos", async (req, res) => {
   }
 });
 
-// app.post("/api/CrearProducto", (req, res) => {
-//   const {
-//     nombreProducto,
-//     descripcion,
-//     precioCompra,
-//     precioVenta,
-//     nombreCategoria,
-//     numeroSerie,
-//   } = req.body;
-
-//   // Crear una nueva instancia de conexión a la base de datos
-//   const connection = new sql.ConnectionPool(dbConfig);
-
-//   // Verificamos que se conecto a la BD de manera correcta
-//   connection.connect((err) => {
-//     if (err) {
-//       console.log(err);
-//       return res.status(500).json({ mensaje: "Error al conectar a la BD" });
-//     }
-
-//     // Insertar nuevo CLIENTE en la base de datos
-//     const insertQuery = `INSERT INTO Productos (Nombre, Descripcion, PrecioCompra, PrecioVenta, Categoria, NumeroSerie ) VALUES ('${nombreProducto}', '${descripcion}', '${precioCompra}', '${precioVenta}','${nombreCategoria}','${numeroSerie}')`;
-
-//     connection.request().query(insertQuery, (err, result) => {
-//       if (err) {
-//         console.log(err);
-//         connection.close();
-//         return res.status(500).json({ mensaje: "Error en la peticion" });
-//       }
-
-//       connection.close();
-//       res.status(201).json({ mensaje: "Producto creado correctamente" });
-//     });
-//   });
-// });
-
-//! con los datos en inventario
 app.post("/api/CrearProducto", (req, res) => {
   const {
     nombreProducto,
@@ -386,52 +403,72 @@ app.post("/api/CrearProducto", (req, res) => {
     numeroSerie,
   } = req.body;
 
-  // Crear una nueva instancia de conexión a la base de datos
   const connection = new sql.ConnectionPool(dbConfig);
 
-  // Verificamos que se conectó a la BD de manera correcta
   connection.connect((err) => {
     if (err) {
       console.log(err);
       return res.status(500).json({ mensaje: "Error al conectar a la BD" });
     }
 
-    // Insertar nuevo CLIENTE en la base de datos
-    const insertQuery = `
-      INSERT INTO Productos (Nombre, Descripcion, PrecioCompra, PrecioVenta, Categoria, NumeroSerie)
-      OUTPUT Inserted.IdProducto
-      VALUES ('${nombreProducto}', '${descripcion}', '${precioCompra}', '${precioVenta}', '${nombreCategoria}', '${numeroSerie}')
-    `;
+    // Verificar si el producto ya existe
+    const checkQuery = `SELECT COUNT(*) as count FROM Productos WHERE Nombre = @nombreProducto`;
 
-    connection.request().query(insertQuery, (err, result) => {
+    const request = connection.request();
+    request.input("nombreProducto", sql.VarChar, nombreProducto);
+
+    request.query(checkQuery, (err, result) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res.status(500).json({ mensaje: "Error en la petición" });
+        return res.status(500).json({
+          mensaje: "Error interno del servidor - Verificación de nombre",
+        });
       }
 
-      const productoId = result.recordset[0].IdProducto;
+      if (result.recordset[0].count > 0) {
+        connection.close();
+        return res.status(400).json({ mensaje: "Este producto ya existe" });
+      }
 
-      // Insertar en la tabla de Inventario
-      const insertInventarioQuery = `
-        INSERT INTO Inventario (IDProducto, Nombre, Stock, CantidadEntrada, CantidadSalida, Fecha, NumeroSerie)
-        SELECT ${productoId}, '${nombreProducto}', 0, 0, 0, GETDATE(),'${numeroSerie}'
+      // Si el producto no existe, realizar la inserción
+      const insertQuery = `
+        INSERT INTO Productos (Nombre, Descripcion, PrecioCompra, PrecioVenta, Categoria, NumeroSerie)
+        OUTPUT Inserted.IdProducto
+        VALUES ('${nombreProducto}', '${descripcion}', '${precioCompra}', '${precioVenta}', '${nombreCategoria}', '${numeroSerie}')
       `;
 
-      connection.request().query(insertInventarioQuery, (err, result) => {
+      const request = connection.request();
+      request.query(insertQuery, (err, result) => {
         if (err) {
           console.log(err);
           connection.close();
           return res.status(500).json({ mensaje: "Error en la petición" });
         }
 
-        connection.close();
-        res.status(201).json({ mensaje: "Producto creado correctamente" });
+        const productoId = result.recordset[0].IdProducto;
+
+        // Insertar en la tabla de Inventario
+        const insertInventarioQuery = `
+          INSERT INTO Inventario (IDProducto, Nombre, Stock, CantidadEntrada, CantidadSalida, Fecha, NumeroSerie)
+          SELECT ${productoId}, '${nombreProducto}', 0, 0, 0, GETDATE(),'${numeroSerie}'
+        `;
+
+        connection.request().query(insertInventarioQuery, (err, result) => {
+          if (err) {
+            console.log(err);
+            connection.close();
+            return res.status(500).json({ mensaje: "Error en la petición" });
+          }
+
+          connection.close();
+          res.status(201).json({ mensaje: "Producto creado correctamente" });
+        });
       });
     });
   });
 });
-//!
+
 app.get("/api/ValidarNumeroSerie/:numeroSerie", (req, res) => {
   const numeroSerie = req.params.numeroSerie;
 
@@ -459,91 +496,6 @@ app.get("/api/ValidarNumeroSerie/:numeroSerie", (req, res) => {
   });
 });
 
-//!
-// app.post("/api/DeleteProducto", (req, res) => {
-//   const { id } = req.body;
-
-//   const connection = new sql.ConnectionPool(dbConfig);
-
-//   connection.connect((err) => {
-//     if (err) {
-//       console.log(err);
-//       return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
-//     }
-//     const insertQuery = `DELETE FROM Productos WHERE IdProducto = ${id}`;
-
-//     connection.request().query(insertQuery, (err, result) => {
-//       if (err) {
-//         console.log(err);
-//         connection.close();
-//         return res.status(500).json({ mensaje: "Error en el query" });
-//       }
-
-//       connection.close();
-//       res.status(201).json({ mensaje: "Producto eliminado correctamente" });
-//       console.log(`Producto con id ${id}, eliminado correctamente`);
-//     });
-//   });
-// });
-
-//!
-
-//! funciona
-// app.post("/api/DeleteProducto", (req, res) => {
-//   const { numeroSerie } = req.body;
-//   console.log(`ID del producto a eliminar: ${numeroSerie}`);
-
-//   const connection = new sql.ConnectionPool(dbConfig);
-
-//   connection.connect((err) => {
-//     if (err) {
-//       console.log(err);
-//       return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
-//     }
-
-//     const checkConditionsQuery = `
-//       BEGIN TRANSACTION;
-
-//       IF EXISTS (
-//           SELECT 1
-//           FROM Inventario
-//           WHERE NumeroSerie = '${numeroSerie}'
-//             AND (Stock <> 0 OR CantidadEntrada <> 0 OR CantidadSalida <> 0)
-//       )
-//       BEGIN
-//           PRINT 'El producto contiene datos en stock, entrada o salida y no puede ser eliminado.';
-//           ROLLBACK TRANSACTION;
-//       END
-//       ELSE
-//       BEGIN
-//           DELETE FROM Inventario
-//           WHERE NumeroSerie = '${numeroSerie}'
-//             AND Stock = 0
-//             AND CantidadEntrada = 0
-//             AND CantidadSalida = 0;
-
-//           DELETE FROM Productos
-//           WHERE NumeroSerie = '${numeroSerie}';
-
-//           COMMIT TRANSACTION;
-//       END
-//       `;
-
-//     connection.request().query(checkConditionsQuery, (err, result) => {
-//       if (err) {
-//         console.log(err);
-//         connection.close();
-//         return res.status(500).json({ mensaje: "Error en el query" });
-//       }
-
-//       connection.close();
-//       res.status(201).json({ mensaje: "Producto eliminado correctamente" });
-//       console.log(`Producto con id ${numeroSerie}, eliminado correctamente`);
-//     });
-//   });
-// });
-
-//! da error
 app.post("/api/DeleteProducto", (req, res) => {
   const { numeroSerie } = req.body;
   // console.log(`ID del producto a eliminar: ${numeroSerie}`);
@@ -610,46 +562,6 @@ app.post("/api/DeleteProducto", (req, res) => {
   });
 });
 
-// app.put("/api/ActualizarProducto/:id", async (req, res) => {
-//   try {
-//     const { id } = req.params; // Obtener el ID del producto de los parámetros de la solicitud
-//     const { nombreProducto, descrip, precioCompra, precioVenta } = req.body; // Obtener los nuevos valores del producto de la solicitud
-
-//     const pool = await sql.connect(dbConfig);
-
-//     // Obtener los datos actuales del cliente desde la base de datos
-//     const queryProducto =
-//       "SELECT * FROM Productos WHERE IdProducto = @IdProducto";
-//     const resultProducto = await pool
-//       .request()
-//       .input("IdProducto", id)
-//       .query(queryProducto);
-//     const productoActual = resultProducto.recordset[0];
-
-//     // Verificar si los campos están vacíos y usar los valores actuales en su lugar
-//     const nombreActual = nombreProducto || productoActual.Nombre;
-//     const descripActual = descrip || productoActual.Descripcion;
-//     const precioCompraActual = precioCompra || productoActual.PrecioCompra;
-//     const precioVentaActual = precioVenta || productoActual.PrecioVenta;
-
-//     // Actualizar el cliente en la base de datos
-//     const queryActualizar =
-//       "UPDATE Productos SET Nombre = @Nombre, Descripcion = @Descripcion, PrecioCompra = @PrecioCompra , PrecioVenta = @PrecioVenta WHERE IdProducto = @IdProducto";
-//     const resultActualizar = await pool
-//       .request()
-//       .input("IdProducto", id)
-//       .input("Nombre", nombreActual)
-//       .input("Descripcion", descripActual)
-//       .input("PrecioCompra", precioCompraActual)
-//       .input("PrecioVenta", precioVentaActual)
-//       .query(queryActualizar);
-
-//     res.json({ message: `Producto actualizado correctamente` });
-//   } catch (error) {
-//     console.error("Error al actualizar el producto:", error);
-//     res.status(500).send("Error del servidor");
-//   }
-// });
 app.put("/api/ActualizarProducto/:numeroSerie", async (req, res) => {
   try {
     const { numeroSerie } = req.body; // Obtener el número de serie del producto de los parámetros de la solicitud
@@ -768,6 +680,7 @@ app.post("/api/GenerarEntrada", async (req, res) => {
   const totalVenta = req.body.total;
   const totalPagado = req.body.totalPagado;
   const vuelto = req.body.vuelto;
+  const idProveedor = req.body.idProveedor;
   // const tipoTransaccion = req.body.tipoTransaccion;
   // const UnidadMedida = req.body.unidadMedida;
 
@@ -778,6 +691,7 @@ app.post("/api/GenerarEntrada", async (req, res) => {
     // console.log("compras:", compras);
     // console.log("total Pagado:", totalPagado);
     // console.log("Cambio:", vuelto);
+    // console.log(`Id del proveedor: ${idProveedor}`);
 
     const table = new sql.Table("ComprasType");
     table.create = true;
@@ -799,6 +713,7 @@ app.post("/api/GenerarEntrada", async (req, res) => {
     table.columns.add("TipoTransaccion", sql.NVarChar(100), {
       nullable: false,
     }); // Agrega la columna TipoTransaccionID
+    table.columns.add("IdProveedor", sql.Int, { nullable: false });
 
     compras.forEach((compra) => {
       table.rows.add(
@@ -814,7 +729,8 @@ app.post("/api/GenerarEntrada", async (req, res) => {
         req.body.vuelto,
         compra.UnidadDeMedida, // Agrega unidad de medida
 
-        compra.tipoTransaccion // Agrega tipo de transacción
+        compra.tipoTransaccion, // Agrega tipo de transacción
+        req.body.idProveedor
       );
     });
 
@@ -822,6 +738,7 @@ app.post("/api/GenerarEntrada", async (req, res) => {
     request.input("Compras", table);
     request.input("TotalPagado", totalPagado);
     request.input("Vuelto", vuelto);
+    request.input("IdProveedor", idProveedor);
     // request.input("UnidadDeMedida", sql.NVarChar(100), UnidadMedida); // Reemplaza "Cajas" con el valor real desde tu objeto de ventas
     // request.input("TipoTransaccion", sql.NVarChar(100), tipoTransaccion); // Reemplaza "Venta" con el valor real desde tu objeto de ventas
     const result = await request.execute("RegistrarCompra");
@@ -854,6 +771,7 @@ app.post("/api/GenerarSalida", async (req, res) => {
   const totalVenta = req.body.total;
   const totalPagado = req.body.totalPagado;
   const vuelto = req.body.vuelto;
+  const idCliente = req.body.idCliente;
   // const tipoTransaccion = req.body.tipoTransaccion;
   // const UnidadMedida = req.body.unidadMedida;
 
@@ -865,6 +783,7 @@ app.post("/api/GenerarSalida", async (req, res) => {
     // console.log("total Pagado:", totalPagado);
     // console.log("Cambio:", vuelto);
     // console.log("tipo de venta", tipoTransaccion);
+    console.log(`el id del cliente es:${idCliente}`);
 
     const table = new sql.Table("VentasType");
     table.create = true;
@@ -884,6 +803,7 @@ app.post("/api/GenerarSalida", async (req, res) => {
     table.columns.add("TipoTransaccion", sql.NVarChar(100), {
       nullable: false,
     }); // Agrega la columna TipoTransaccionID
+    table.columns.add("IdCliente", sql.Int, { nullable: false }); // Agregar el campo IdCliente
 
     ventas.forEach((venta) => {
       // console.log("Unidad de Medida existe?:", venta.UnidadDeMedida); // Agrega este log
@@ -900,7 +820,8 @@ app.post("/api/GenerarSalida", async (req, res) => {
         req.body.vuelto,
         venta.UnidadDeMedida, // Agrega unidad de medida
 
-        venta.tipoTransaccion // Agrega tipo de transacción
+        venta.tipoTransaccion, // Agrega tipo de transacción
+        req.body.idCliente
       );
     });
 
@@ -908,6 +829,7 @@ app.post("/api/GenerarSalida", async (req, res) => {
     request.input("Ventas", table);
     request.input("TotalPagado", totalPagado);
     request.input("Vuelto", vuelto);
+    request.input("IdCliente", idCliente);
     // request.input("UnidadDeMedida", sql.NVarChar(100), UnidadMedida); // Reemplaza "Cajas" con el valor real desde tu objeto de ventas
     // request.input("TipoTransaccion", sql.NVarChar(100), tipoTransaccion); // Reemplaza "Venta" con el valor real desde tu objeto de ventas
 
@@ -1212,7 +1134,6 @@ app.get("/api/DetallesCompra/:id", async (req, res) => {
   }
 });
 
-//! stock
 app.get("/api/VerificarStock/:nombreProducto", async (req, res) => {
   const nombreProducto = req.params.nombreProducto;
 
@@ -1245,7 +1166,6 @@ app.get("/api/VerificarStock/:nombreProducto", async (req, res) => {
   }
 });
 
-//!
 app.get("/api/VerificarStockVenta/:nombreProducto", async (req, res) => {
   const nombreProducto = req.params.nombreProducto;
 
@@ -1290,94 +1210,6 @@ app.get("/api/VerificarStockCompra/:nombreProducto", async (req, res) => {
     res.status(500).json({ mensaje: "Error al obtener el stock del producto" });
   }
 });
-
-//! funciona
-// app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
-//   const ventaId = req.params.ventaId;
-
-//   try {
-//     const pool = await sql.connect(dbConfig);
-//     await pool.request().input("VentaId", sql.Int, ventaId).query(`
-//       BEGIN TRANSACTION;
-//       -- Obtener los detalles de la venta para devolver la cantidad al stock
-//       DECLARE @Detalles AS dbo.VentasType;
-//       INSERT INTO @Detalles (NombreProducto, Cantidad)
-//       SELECT Producto, Cantidad
-//       FROM DetalleVentas
-//       WHERE IdVenta = @VentaId;
-
-//       -- Eliminar la venta
-//       DELETE FROM Ventas WHERE Codigo = @VentaId;
-//       -- Eliminar los detalles de la venta
-//       DELETE FROM DetalleVentas WHERE IdVenta = @VentaId;
-
-//       -- Devolver la cantidad al stock
-//       UPDATE Productos
-//       SET Stock = Stock + d.Cantidad
-//       FROM Productos p
-//       JOIN @Detalles d ON p.Nombre = d.NombreProducto;
-
-//       COMMIT TRANSACTION;
-//     `);
-
-//     res.sendStatus(200); // Enviar una respuesta 200 OK si todo fue exitoso
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ mensaje: "Error al eliminar la venta" });
-//   }
-// });
-
-//!
-// app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
-//   const ventaId = req.params.ventaId;
-
-//   try {
-//     const pool = await sql.connect(dbConfig);
-//     await pool.request().input("VentaId", sql.Int, ventaId).query(`
-//       BEGIN TRANSACTION;
-//       -- Obtener los detalles de la venta para devolver la cantidad al stock
-//       DECLARE @Detalles AS dbo.VentasType;
-//       INSERT INTO @Detalles (NombreProducto, Cantidad)
-//       SELECT Producto, Cantidad
-//       FROM DetalleVentas
-//       WHERE IdVenta = @VentaId;
-
-//       -- Eliminar la venta
-//       DELETE FROM Ventas WHERE Codigo = @VentaId;
-//       -- Eliminar los detalles de la venta
-//       DELETE FROM DetalleVentas WHERE IdVenta = @VentaId;
-
-//       -- Devolver la cantidad al stock de producto
-//       UPDATE Productos
-//       SET Stock = Stock + d.Cantidad
-//       FROM Productos p
-//       JOIN @Detalles d ON p.Nombre = d.NombreProducto;
-
-//       -- Actualizar la cantidad de salida
-//       UPDATE Inventario
-//       SET CantidadSalida = CantidadSalida - (
-//         SELECT SUM(Cantidad)
-//         FROM @Detalles
-//       );
-
-//       -- Devolver la cantidad al stock de inventario
-//       UPDATE Inventario
-//       SET Stock = Stock + (
-//         SELECT SUM(Cantidad)
-//         FROM @Detalles
-//       );
-
-//       COMMIT TRANSACTION;
-//     `);
-
-//     res.sendStatus(200); // Enviar una respuesta 200 OK si todo fue exitoso
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ mensaje: "Error al eliminar la venta" });
-//   }
-// });
-
-//!
 
 app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
   const ventaId = req.params.ventaId;
@@ -1426,43 +1258,6 @@ app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
   }
 });
 
-//! esta bueno, pero no actualiza la entrada
-
-// app.delete("/api/EliminarCompra/:compraId", async (req, res) => {
-//   const compraId = req.params.compraId;
-
-//   try {
-//     const pool = await sql.connect(dbConfig);
-//     await pool.request().input("CompraId", sql.Int, compraId).query(`
-//       BEGIN TRANSACTION;
-//       -- Obtener los detalles de la venta para devolver la cantidad al stock
-//       DECLARE @Detalles AS dbo.ComprasType;
-//       INSERT INTO @Detalles (NombreProducto, Cantidad)
-//       SELECT Producto, Cantidad
-//       FROM DetalleCompras
-//       WHERE IdCompra = @CompraId;
-
-//       -- Eliminar la compra
-//       DELETE FROM Compras WHERE Codigo = @CompraId;
-//       -- Eliminar los detalles de la venta
-//       DELETE FROM DetalleCompras WHERE IdCompra = @CompraId;
-
-//       -- Devolver la cantidad al stock
-//       UPDATE Productos
-//       SET Stock = Stock - d.Cantidad
-//       FROM Productos p
-//       JOIN @Detalles d ON p.Nombre = d.NombreProducto;
-
-//       COMMIT TRANSACTION;
-//     `);
-
-//     res.sendStatus(200); // Enviar una respuesta 200 OK si todo fue exitoso
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ mensaje: "Error al eliminar la compra" });
-//   }
-// });
-//! funciona
 app.delete("/api/EliminarCompra/:compraId", async (req, res) => {
   const compraId = req.params.compraId;
 
@@ -1533,79 +1328,82 @@ app.listen(port, () => {
 app.get("/api/UnidadesDeMedida", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
-  
+
     const result = await pool.request().query("SELECT * FROM UnidadesDeMedida");
-    
+
     res.send(result.recordset);
   } catch (error) {
-    
     console.error("Error al obtener Unidades de Medida:", error);
     res.status(500).send("Error del servidor");
   }
 });
 
 app.post("/api/CrearUnidadDeMedida", (req, res) => {
-  const { nombreUnidad }= req.body;
+  const { nombreUnidad } = req.body;
 
   const connection = new sql.ConnectionPool(dbConfig);
 
   connection.connect((err) => {
     if (err) {
       console.log(err);
-      return res.status(500).json({ mensaje: "Error interno del servidor 1 - Conexion BD" });
+      return res
+        .status(500)
+        .json({ mensaje: "Error interno del servidor 1 - Conexion BD" });
     }
-    const insertQuery = `INSERT INTO UnidadesDeMedida (Nombre) VALUES ('${nombreUnidad}')`;
 
-    connection.request().query(insertQuery, (err, result) => {
+    // Verificar si el nombre ya existe
+    const checkQuery = `SELECT COUNT(*) as count FROM UnidadesDeMedida WHERE Nombre = @nombreUnidad`;
+
+    const request = connection.request();
+    request.input("nombreUnidad", sql.VarChar, nombreUnidad);
+
+    request.query(checkQuery, (err, result) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res
-          .status(500)
-          .json({ mensaje: "Error interno del servidor 3 - En el query" });
+        return res.status(500).json({
+          mensaje: "Error interno del servidor 2 - Verificación de nombre",
+        });
       }
 
-      connection.close();
-      res.status(201).json({ mensaje: "Unidad de Medida creada correctamente" });
-      console.log(`Unidad de medida: ${nombreUnidad}, creada correctamente`);
+      if (result.recordset[0].count > 0) {
+        // Si el nombre ya existe, enviar un mensaje de error
+        connection.close();
+        return res
+          .status(400)
+          .json({ mensaje: "Esta Unidad de medida ya existe" });
+      } else {
+        // Si el nombre no existe, realizar la inserción
+        const insertQuery = `INSERT INTO UnidadesDeMedida (Nombre) VALUES (@nombreUnidad)`;
+
+        const request = connection.request();
+        request.input("nombreUnidad", sql.VarChar, nombreUnidad);
+
+        request.query(insertQuery, (err, result) => {
+          if (err) {
+            console.log(err);
+            connection.close();
+            return res
+              .status(500)
+              .json({ mensaje: "Error interno del servidor 3 - En el query" });
+          }
+
+          connection.close();
+          res
+            .status(201)
+            .json({ mensaje: "Unidad de Medida creada correctamente" });
+          console.log(
+            `Unidad de medida: ${nombreUnidad}, creada correctamente`
+          );
+        });
+      }
     });
   });
 });
 
-app.put("/api/ActualizarUnidadDeMedida/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { nombreUnidad } = req.body; 
-
-    const pool = await sql.connect(dbConfig);
-
-    const queryUnidadDeMedida =
-      "SELECT * FROM UnidadesDeMedida WHERE ID = @ID";
-    const resultUnidadDeMedida = await pool
-      .request()
-      .input("ID", id)
-      .query(queryUnidadDeMedida);
-    const unidadActual = resultUnidadDeMedida.recordset[0];
-
-    const nombreActual = nombreUnidad || unidadActual.Nombre;
-    
-    const queryActualizar =
-      "UPDATE UnidadesDeMedida SET Nombre = @Nombre WHERE ID = @ID";
-    const resultActualizar = await pool
-      .request()
-      .input("ID", id)
-      .input("Nombre", nombreActual)
-      .query(queryActualizar);
-
-    res.json({ message: "Unidad de Medida actualizada correctamente" });
-  } catch (error) {
-    console.error("Error al actualizar la unidad de medida:", error);
-    res.status(500).send("Error del servidor");
-  }
-});
-
-app.delete("/api/DeleteUnidadDeMedida/:id", (req, res) => {
-  const { id } = req.params;
+app.delete("/api/DeleteUnidadDeMedida/:nombre", (req, res) => {
+  const { nombre } = req.params;
+  console.log(nombre);
 
   const connection = new sql.ConnectionPool(dbConfig);
 
@@ -1614,18 +1412,48 @@ app.delete("/api/DeleteUnidadDeMedida/:id", (req, res) => {
       console.log(err);
       return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
     }
-    const insertQuery = `DELETE FROM UnidadesDeMedida WHERE ID = ${id}`;
 
-    connection.request().query(insertQuery, (err, result) => {
+    const checkReferencesQuery = `
+      SELECT TOP 1 1
+      FROM DetalleVentas
+      WHERE UnidadDeMedida = '${nombre}'
+      UNION ALL
+      SELECT TOP 1 1
+      FROM DetalleCompras
+      WHERE UnidadDeMedida = '${nombre}'
+    `;
+
+    connection.request().query(checkReferencesQuery, (err, result) => {
       if (err) {
         console.log(err);
         connection.close();
         return res.status(500).json({ mensaje: "Error en el query" });
       }
 
-      connection.close();
-      res.status(201).json({ mensaje: "Unida de medida eliminada correctamente" });
-      console.log(`Unidad de medida con id ${id}, eliminada correctamente`);
+      if (result.recordset.length > 0) {
+        connection.close();
+        return res.status(400).json({
+          mensaje:
+            "No se puede eliminar esta unidad de medida porque está referenciada en DetalleVentas o DetalleCompras.",
+        });
+      }
+
+      const deleteQuery = `DELETE FROM UnidadesDeMedida WHERE Nombre = '${nombre}'`;
+
+      connection.request().query(deleteQuery, (err, result) => {
+        if (err) {
+          console.log(err);
+          connection.close();
+          return res
+            .status(500)
+            .json({ mensaje: "Error al eliminar la unidad de medida" });
+        }
+
+        connection.close();
+        res
+          .status(201)
+          .json({ mensaje: "Unidad de medida eliminada correctamente" });
+      });
     });
   });
 });
@@ -1635,49 +1463,87 @@ app.delete("/api/DeleteUnidadDeMedida/:id", (req, res) => {
 app.get("/api/TiposDeTransacciones", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
-  
-    const result = await pool.request().query("SELECT * FROM TiposDeTransaccion");
-    
+
+    const result = await pool
+      .request()
+      .query("SELECT * FROM TiposDeTransaccion");
+
     res.send(result.recordset);
   } catch (error) {
-    
     console.error("Error al obtener tipos de transacciones", error);
     res.status(500).send("Error del servidor");
   }
 });
 
+//!
 app.post("/api/CrearTipoDeTransaccion", (req, res) => {
-  const { nombreTransaccion }= req.body;
+  const { nombreTransaccion } = req.body;
 
   const connection = new sql.ConnectionPool(dbConfig);
 
   connection.connect((err) => {
     if (err) {
       console.log(err);
-      return res.status(500).json({ mensaje: "Error interno del servidor 1 - Conexion BD" });
+      return res
+        .status(500)
+        .json({ mensaje: "Error interno del servidor 1 - Conexion BD" });
     }
-    const insertQuery = `INSERT INTO TiposDeTransaccion (Nombre) VALUES ('${nombreTransaccion}')`;
 
-    connection.request().query(insertQuery, (err, result) => {
+    // Verificar si el nombre ya existe
+    const checkQuery = `SELECT COUNT(*) as count FROM TiposDeTransaccion WHERE Nombre = @nombreTransaccion`;
+
+    const request = connection.request();
+    request.input("nombreTransaccion", sql.VarChar, nombreTransaccion);
+
+    request.query(checkQuery, (err, result) => {
       if (err) {
         console.log(err);
         connection.close();
-        return res
-          .status(500)
-          .json({ mensaje: "Error interno del servidor 3 - En el query" });
+        return res.status(500).json({
+          mensaje: "Error interno del servidor 2 - Verificación de nombre",
+        });
       }
 
-      connection.close();
-      res.status(201).json({ mensaje: "Tipo de transaccion creada correctamente" });
-      console.log(`Tipo de transaccion: ${nombreTransaccion}, creada correctamente`);
+      if (result.recordset[0].count > 0) {
+        connection.close();
+        return res
+          .status(400)
+          .json({ mensaje: "Este tipo de Transacción ya existe" });
+      }
+
+      // Si el nombre no existe, realizar la inserción
+      const insertQuery = `INSERT INTO TiposDeTransaccion (Nombre) VALUES (@nombreTransaccion)`;
+
+      const request = connection.request();
+      request.input("nombreTransaccion", sql.VarChar, nombreTransaccion);
+
+      request.query(insertQuery, (err, result) => {
+        if (err) {
+          console.log(err);
+          connection.close();
+          return res
+            .status(500)
+            .json({ mensaje: "Error interno del servidor 3 - En el query" });
+        }
+
+        connection.close();
+        res
+          .status(201)
+          .json({ mensaje: "Tipo de transaccion creada correctamente" });
+        // console.log(
+        //   `Tipo de transaccion: ${nombreTransaccion}, creada correctamente`
+        // );
+      });
     });
   });
 });
 
+//!
 app.put("/api/ActualizarTiposDeTransaccion/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombreTransaccion } = req.body; 
+    const { nombreTransaccion } = req.body;
+    // console.log(`veremos ${nombreTransaccion}`);
 
     const pool = await sql.connect(dbConfig);
 
@@ -1690,7 +1556,7 @@ app.put("/api/ActualizarTiposDeTransaccion/:id", async (req, res) => {
     const transaccionActual = resultTipoDeTransaccion.recordset[0];
 
     const nombreActual = nombreTransaccion || transaccionActual.Nombre;
-    
+
     const queryActualizar =
       "UPDATE TiposDeTransaccion SET Nombre = @Nombre WHERE ID = @ID";
     const resultActualizar = await pool
@@ -1701,13 +1567,64 @@ app.put("/api/ActualizarTiposDeTransaccion/:id", async (req, res) => {
 
     res.json({ message: "Tipo De Transaccion actualizada correctamente" });
   } catch (error) {
-    console.error("Error al actualizar el tipo de transaccion:", error);
-    res.status(500).send("Error del servidor");
+    // Verificar si el error es debido a una restricción de clave foránea
+    if (error.number === 547) {
+      // Restricción de clave foránea violada
+      return res.status(400).json({
+        mensaje:
+          "No se puede actualizar el tipo de transacción porque está siendo referenciado en DetalleCompras o DetalleVentas.",
+      });
+    } else {
+      // Otro tipo de error
+      console.error("Error al actualizar el tipo de transaccion:", error);
+      return res.status(500).send("Error del servidor");
+    }
   }
 });
 
-app.delete("/api/DeleteTipoDeTransaccion/:id", (req, res) => {
-  const { id } = req.params;
+app.put("/api/ActualizarUnidadDeMedida/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombreUnidad } = req.body;
+
+    const pool = await sql.connect(dbConfig);
+
+    const queryMedida = "SELECT * FROM UnidadesDeMedida WHERE ID = @ID";
+    const resultMedida = await pool
+      .request()
+      .input("ID", id)
+      .query(queryMedida);
+    const medidaActual = resultMedida.recordset[0];
+
+    const nombreActual = nombreUnidad || medidaActual.Nombre;
+
+    const queryActualizar =
+      "UPDATE UnidadesDeMedida SET Nombre = @Nombre WHERE ID = @ID";
+    const resultActualizar = await pool
+      .request()
+      .input("ID", id)
+      .input("Nombre", nombreActual)
+      .query(queryActualizar);
+
+    res.json({ message: "Medida actualizada correctamente" });
+  } catch (error) {
+    // Verificar si el error es debido a una restricción de clave foránea
+    if (error.number === 547) {
+      // Restricción de clave foránea violada
+      return res.status(400).json({
+        mensaje:
+          "No se puede actualizar la medida porque está siendo referenciada en DetalleCompras o DetalleVentas.",
+      });
+    } else {
+      // Otro tipo de error
+      console.error("Error al actualizar la medida:", error);
+      return res.status(500).send("Error del servidor");
+    }
+  }
+});
+
+app.delete("/api/DeleteTipoDeTransaccion/:nombre", (req, res) => {
+  const { nombre } = req.params;
 
   const connection = new sql.ConnectionPool(dbConfig);
 
@@ -1716,19 +1633,66 @@ app.delete("/api/DeleteTipoDeTransaccion/:id", (req, res) => {
       console.log(err);
       return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
     }
-    const insertQuery = `DELETE FROM TiposDeTransaccion WHERE ID = ${id}`;
 
-    connection.request().query(insertQuery, (err, result) => {
+    const checkReferencesQuery = `
+      SELECT TOP 1 1
+      FROM DetalleVentas
+      WHERE TipoTransaccion = '${nombre}'
+      UNION ALL
+      SELECT TOP 1 1
+      FROM DetalleCompras
+      WHERE TipoTransaccion = '${nombre}'
+    `;
+
+    connection.request().query(checkReferencesQuery, (err, result) => {
       if (err) {
         console.log(err);
         connection.close();
         return res.status(500).json({ mensaje: "Error en el query" });
       }
 
-      connection.close();
-      res.status(201).json({ mensaje: "Tipo de transaccion eliminada correctamente" });
-      console.log(`Tipo de transaccion con id ${id}, eliminada correctamente`);
+      if (result.recordset.length > 0) {
+        connection.close();
+        return res.status(400).json({
+          mensaje:
+            "No se puede eliminar este tipo de transacción porque está referenciado en DetalleVentas o DetalleCompras.",
+        });
+      }
+
+      const deleteQuery = `DELETE FROM TiposDeTransaccion WHERE Nombre = '${nombre}'`;
+
+      connection.request().query(deleteQuery, (err, result) => {
+        if (err) {
+          console.log(err);
+          connection.close();
+          return res
+            .status(500)
+            .json({ mensaje: "Error al eliminar el tipo de transacción" });
+        }
+
+        connection.close();
+        res
+          .status(201)
+          .json({ mensaje: "Tipo de transacción eliminada correctamente" });
+      });
     });
   });
 });
 
+app.get("/api/VentasPorDia", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+    const result = await pool.request().query(`
+    SELECT 
+    DATEPART(dw, Fecha) as DiaDeLaSemana,
+    COUNT(*) as TotalVentas
+  FROM Ventas
+  GROUP BY DATEPART(dw, Fecha)
+  ORDER BY DiaDeLaSemana ASC
+    `);
+    res.send(result.recordset);
+  } catch (error) {
+    console.error("Error al obtener Ventas por Día:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
