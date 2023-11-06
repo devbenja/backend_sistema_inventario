@@ -9,9 +9,9 @@ const port = 5000;
 // Configuración de conexión a SQL Server
 const dbConfig = {
   server: "localhost",
-  database: "prueba2",
-  user: "sa",
-  password: "1234",
+  database: "INVENT",
+  user: "prueba",
+  password: "123",
   trustServerCertificate: true,
   options: {
     trustedConnection: true,
@@ -37,20 +37,132 @@ app.get("/api/Clientes", async (req, res) => {
     res.status(500).send("Error del servidor");
   }
 });
-//!
+
+// Crud categorias
 app.get("/api/Categorias", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query("SELECT * FROM Categorias");
+    const result = await pool.request().query("SELECT * FROM Categoria");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
     // Caso contrario nos manda el error del porque no se puede
-    console.error("Error al obtener elementos:", error);
+    console.error("Error al obtener categorias:", error);
     res.status(500).send("Error del servidor");
   }
 });
+
+app.post("/api/CrearCategoria", (req, res) => {
+  const { nombreCategoria } = req.body;
+
+  const connection = new sql.ConnectionPool(dbConfig);
+
+  connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res
+        .status(500)
+        .json({ mensaje: "Error interno del servidor 1 - Conexion BD" });
+    }
+
+    // Verificar si el nombre ya existe
+    const checkQuery = `SELECT COUNT(*) as count FROM Categoria WHERE NombreCategoria = @NombreCategoria`;
+
+    const request = connection.request();
+    request.input("NombreCategoria", sql.VarChar, nombreCategoria);
+
+    request.query(checkQuery, (err, result) => {
+      if (err) {
+        console.log(err);
+        connection.close();
+        return res.status(500).json({
+          mensaje: "Error interno del servidor 2 - Verificación de nombre",
+        });
+      }
+
+      if (result.recordset[0].count > 0) {
+        // Si el nombre ya existe, enviar un mensaje de error
+        connection.close();
+        return res
+          .status(400)
+          .json({ mensaje: "Esta categoria ya existe" });
+      } else {
+        // Si el nombre no existe, realizar la inserción
+        const insertQuery = `INSERT INTO Categoria (NombreCategoria) VALUES (@NombreCategoria)`;
+
+        const request = connection.request();
+        request.input("NombreCategoria", sql.VarChar, nombreCategoria);
+
+        request.query(insertQuery, (err, result) => {
+          if (err) {
+            console.log(err);
+            connection.close();
+            return res
+              .status(500)
+              .json({ mensaje: "Error interno del servidor 3 - En el query" });
+          }
+
+          connection.close();
+          res
+            .status(201)
+            .json({ mensaje: "Categoria creada correctamente" });
+          console.log(
+            `Categoria: ${nombreCategoria}, creada correctamente`
+          );
+        });
+      }
+    });
+  });
+});
+
+app.delete('/api/DeleteCategoria/:id', async (req, res) => {
+
+  const { id } = req.params;
+
+  try {
+    // Crear una nueva conexión
+    const connection = await sql.connect(dbConfig);
+
+    // Eliminar el proveedor directamente sin verificar referencias
+    const deleteQuery = `DELETE FROM Categoria WHERE CategoriaID = ${id}`;
+    await connection.query(deleteQuery);
+
+    await connection.close();
+    res.status(201).json({ mensaje: 'Categoria eliminada correctamente' });
+  } catch (err) {
+    console.error('Error al eliminar la categoria:', err);
+    res.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+
+});
+
+app.put('/api/EditCategoria/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nombreCategoria } = req.body;
+
+  try {
+    // Crear una nueva conexión
+    const connection = await sql.connect(dbConfig);
+
+    // Consulta SQL para actualizar el nombre de la categoría
+    const updateQuery = `
+      UPDATE Categoria
+      SET NombreCategoria = '${nombreCategoria}'
+      WHERE CategoriaID = ${id}
+    `;
+
+    // Ejecutar la consulta de actualización
+    await connection.query(updateQuery);
+
+    await connection.close();
+    res.status(200).json({ mensaje: 'Nombre de categoría actualizado correctamente' });
+  } catch (err) {
+    console.error('Error al editar el nombre de la categoría:', err);
+    res.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+});
+
 //!
 app.get("/api/UnidadesMedida", async (req, res) => {
   try {
@@ -83,6 +195,7 @@ app.get("/api/TiposTransaccion", async (req, res) => {
     res.status(500).send("Error del servidor");
   }
 });
+
 app.get("/api/TiposTransaccionCompras", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
@@ -895,6 +1008,7 @@ app.get("/api/ClientesConTotalGastado", async (req, res) => {
     res.status(500).send("Error del servidor");
   }
 });
+
 app.get("/api/ProveedoresConTotalGastado", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
@@ -1031,6 +1145,7 @@ app.post("/api/reporte-ventas", async (req, res) => {
     }
   }
 });
+
 app.post("/api/reporte-compras", async (req, res) => {
   //   console.log("Solicitud de reporte de ventas recibida");
   const { fechaInicio, fechaFin } = req.body;
@@ -1106,7 +1221,6 @@ app.get("/api/DetallesVenta/:id", async (req, res) => {
       .json({ mensaje: "Error al obtener los detalles de la venta" });
   }
 });
-
 //! detalles compras
 app.get("/api/DetallesCompra/:id", async (req, res) => {
   const compraId = req.params.id;
@@ -1188,6 +1302,7 @@ app.get("/api/VerificarStockVenta/:nombreProducto", async (req, res) => {
     res.status(500).json({ mensaje: "Error al obtener el stock del producto" });
   }
 });
+
 app.get("/api/VerificarStockCompra/:nombreProducto", async (req, res) => {
   const nombreProducto = req.params.nombreProducto;
 
@@ -1458,6 +1573,47 @@ app.delete("/api/DeleteUnidadDeMedida/:nombre", (req, res) => {
   });
 });
 
+app.put("/api/ActualizarUnidadDeMedida/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombreUnidad } = req.body;
+
+    const pool = await sql.connect(dbConfig);
+
+    const queryMedida = "SELECT * FROM UnidadesDeMedida WHERE ID = @ID";
+    const resultMedida = await pool
+      .request()
+      .input("ID", id)
+      .query(queryMedida);
+    const medidaActual = resultMedida.recordset[0];
+
+    const nombreActual = nombreUnidad || medidaActual.Nombre;
+
+    const queryActualizar =
+      "UPDATE UnidadesDeMedida SET Nombre = @Nombre WHERE ID = @ID";
+    const resultActualizar = await pool
+      .request()
+      .input("ID", id)
+      .input("Nombre", nombreActual)
+      .query(queryActualizar);
+
+    res.json({ message: "Medida actualizada correctamente" });
+  } catch (error) {
+    // Verificar si el error es debido a una restricción de clave foránea
+    if (error.number === 547) {
+      // Restricción de clave foránea violada
+      return res.status(400).json({
+        mensaje:
+          "No se puede actualizar la medida porque está siendo referenciada en DetalleCompras o DetalleVentas.",
+      });
+    } else {
+      // Otro tipo de error
+      console.error("Error al actualizar la medida:", error);
+      return res.status(500).send("Error del servidor");
+    }
+  }
+});
+
 // CRUD TRANSACCIONES
 
 app.get("/api/TiposDeTransacciones", async (req, res) => {
@@ -1582,46 +1738,6 @@ app.put("/api/ActualizarTiposDeTransaccion/:id", async (req, res) => {
   }
 });
 
-app.put("/api/ActualizarUnidadDeMedida/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { nombreUnidad } = req.body;
-
-    const pool = await sql.connect(dbConfig);
-
-    const queryMedida = "SELECT * FROM UnidadesDeMedida WHERE ID = @ID";
-    const resultMedida = await pool
-      .request()
-      .input("ID", id)
-      .query(queryMedida);
-    const medidaActual = resultMedida.recordset[0];
-
-    const nombreActual = nombreUnidad || medidaActual.Nombre;
-
-    const queryActualizar =
-      "UPDATE UnidadesDeMedida SET Nombre = @Nombre WHERE ID = @ID";
-    const resultActualizar = await pool
-      .request()
-      .input("ID", id)
-      .input("Nombre", nombreActual)
-      .query(queryActualizar);
-
-    res.json({ message: "Medida actualizada correctamente" });
-  } catch (error) {
-    // Verificar si el error es debido a una restricción de clave foránea
-    if (error.number === 547) {
-      // Restricción de clave foránea violada
-      return res.status(400).json({
-        mensaje:
-          "No se puede actualizar la medida porque está siendo referenciada en DetalleCompras o DetalleVentas.",
-      });
-    } else {
-      // Otro tipo de error
-      console.error("Error al actualizar la medida:", error);
-      return res.status(500).send("Error del servidor");
-    }
-  }
-});
 
 app.delete("/api/DeleteTipoDeTransaccion/:nombre", (req, res) => {
   const { nombre } = req.params;
@@ -1679,6 +1795,8 @@ app.delete("/api/DeleteTipoDeTransaccion/:nombre", (req, res) => {
   });
 });
 
+// Reportes
+
 app.get("/api/VentasPorDia", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
@@ -1720,6 +1838,7 @@ app.get("/api/TopProductos", async (req, res) => {
     res.status(500).send("Error del servidor");
   }
 });
+
 app.get("/api/VentasMensuales", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
@@ -1745,3 +1864,4 @@ ORDER BY
     res.status(500).send("Error del servidor");
   }
 });
+
