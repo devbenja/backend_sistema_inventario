@@ -9,9 +9,9 @@ const port = 5000;
 // Configuración de conexión a SQL Server
 const dbConfig = {
   server: "localhost",
-  database: "INVENT",
-  user: "prueba",
-  password: "123",
+  database: "prueba2",
+  user: "sa",
+  password: "1234",
   trustServerCertificate: true,
   options: {
     trustedConnection: true,
@@ -38,12 +38,166 @@ app.get("/api/Clientes", async (req, res) => {
   }
 });
 
+app.get("/api/Empleados", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+    // Realizamos la consulta para obtener todos los clientes
+    const result = await pool.request().query("SELECT * FROM Empleados");
+    // El response va contener todos los datos que se obtuvieron de la BD
+    res.send(result.recordset);
+  } catch (error) {
+    // Caso contrario nos manda el error del porque no se puede
+    console.error("Error al obtener elementos:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
+
+app.post("/api/CrearEmpleado", (req, res) => {
+  const {
+    nombreEmpleado,
+    telefonoEmpleado,
+    correoEmpleado,
+    direccionEmpleado,
+  } = req.body;
+
+  const connection = new sql.ConnectionPool(dbConfig);
+
+  connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res
+        .status(500)
+        .json({ mensaje: "Error interno del servidor 1 - Conexion la BD" });
+    }
+    const insertQuery = `INSERT INTO Empleados (NombreEmpleado, TelefonoEmpleado, CorreoEmpleado, DireccionEmpleado) VALUES ('${nombreEmpleado}', '${telefonoEmpleado}', '${correoEmpleado}', '${direccionEmpleado}')`;
+
+    connection.request().query(insertQuery, (err, result) => {
+      if (err) {
+        console.log(err);
+        connection.close();
+        return res
+          .status(500)
+          .json({ mensaje: "Error interno del servidor 3" });
+      }
+
+      connection.close();
+      res.status(201).json({ mensaje: "Empleado registrado correctamente" });
+      // console.log(`Cliente: ${nombreCliente}, creado correctamente`);
+    });
+  });
+});
+
+app.put("/api/ActualizarEmpleados/:id", async (req, res) => {
+  try {
+    const { id } = req.params; // Obtener el ID del cliente de los parámetros de la solicitud
+    const {
+      nombreEmpleado,
+      telefonoEmpleado,
+      correoEmpleado,
+      direccionEmpleado,
+    } = req.body; // Obtener los nuevos valores del cliente de la solicitud
+
+    const pool = await sql.connect(dbConfig);
+
+    // Obtener los datos actuales del cliente desde la base de datos
+    const queryEmpleado =
+      "SELECT * FROM Empleados WHERE IdEmpleado = @IdEmpleado";
+    const resultEmpleado = await pool
+      .request()
+      .input("IdEmpleado", id)
+      .query(queryEmpleado);
+    const empleadoActual = resultEmpleado.recordset[0];
+
+    // Verificar si los campos están vacíos y usar los valores actuales en su lugar
+    const nombreActual = nombreEmpleado || empleadoActual.NombreEmpleado;
+    const telefonoActual = telefonoEmpleado || empleadoActual.TelefonoEmpleado;
+    const correoActual = correoEmpleado || empleadoActual.CorreoEmpleado;
+    const direccionActual =
+      direccionEmpleado || empleadoActual.DireccionEmpleado;
+
+    // Actualizar el cliente en la base de datos
+    const queryActualizar =
+      "UPDATE Empleados SET NombreEmpleado = @NombreEmpleado, TelefonoEmpleado = @TelefonoEmpleado, CorreoEmpleado = @CorreoEmpleado, DireccionEmpleado = @DireccionEmpleado WHERE IdEmpleado = @IdEmpleado";
+    const resultActualizar = await pool
+      .request()
+      .input("IdEmpleado", id)
+      .input("NombreEmpleado", nombreActual)
+      .input("TelefonoEmpleado", telefonoActual)
+      .input("CorreoEmpleado", correoActual)
+      .input("DireccionEmpleado", direccionActual)
+      .query(queryActualizar);
+
+    res.json({ message: `Empleado actualizado correctamente` });
+  } catch (error) {
+    console.error("Error al actualizar el cliente:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
+
+app.post("/api/DeleteEmpleado", (req, res) => {
+  const { id } = req.body;
+  // console.log("el id es:" + id);
+
+  const connection = new sql.ConnectionPool(dbConfig);
+
+  connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
+    }
+
+    // Consultar si hay referencias en Ventas
+    const checkReferencesQuery = `
+ 
+  SELECT TOP 1 1
+  FROM Ventas
+  WHERE IdEmpleado = '${id}'
+  UNION ALL
+  SELECT TOP 1 1
+  FROM Compras
+  WHERE IdEmpleado = '${id}'
+`;
+
+    connection.request().query(checkReferencesQuery, (err, result) => {
+      if (err) {
+        console.log(err);
+        connection.close();
+        return res.status(500).json({ mensaje: "Error en el query" });
+      }
+
+      if (result.recordset.length > 0) {
+        connection.close();
+        return res.status(400).json({
+          mensaje: "No se puede eliminar este empleado porque tiene registros.",
+        });
+      }
+
+      // Si no hay referencias, proceder con la eliminación
+      const deleteQuery = `DELETE FROM Empleados WHERE IdEmpleado = ${id}`;
+
+      connection.request().query(deleteQuery, (err, result) => {
+        if (err) {
+          console.log(err);
+          connection.close();
+          return res
+            .status(500)
+            .json({ mensaje: "Error al eliminar el empleado" });
+        }
+
+        connection.close();
+        res.status(201).json({ mensaje: "Empleado eliminado correctamente" });
+        // console.log(`Cliente con id ${id}, eliminado correctamente`);
+      });
+    });
+  });
+});
+
 // Crud categorias
 app.get("/api/Categorias", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
-    const result = await pool.request().query("SELECT * FROM Categoria");
+    const result = await pool.request().query("SELECT * FROM Categorias");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
@@ -55,6 +209,7 @@ app.get("/api/Categorias", async (req, res) => {
 
 app.post("/api/CrearCategoria", (req, res) => {
   const { nombreCategoria } = req.body;
+  // console.log(`la categoria es: ${nombreCategoria}`);
 
   const connection = new sql.ConnectionPool(dbConfig);
 
@@ -67,10 +222,10 @@ app.post("/api/CrearCategoria", (req, res) => {
     }
 
     // Verificar si el nombre ya existe
-    const checkQuery = `SELECT COUNT(*) as count FROM Categoria WHERE NombreCategoria = @NombreCategoria`;
+    const checkQuery = `SELECT COUNT(*) as count FROM Categorias WHERE Nombre = @Nombre`;
 
     const request = connection.request();
-    request.input("NombreCategoria", sql.VarChar, nombreCategoria);
+    request.input("Nombre", sql.VarChar, nombreCategoria);
 
     request.query(checkQuery, (err, result) => {
       if (err) {
@@ -84,15 +239,13 @@ app.post("/api/CrearCategoria", (req, res) => {
       if (result.recordset[0].count > 0) {
         // Si el nombre ya existe, enviar un mensaje de error
         connection.close();
-        return res
-          .status(400)
-          .json({ mensaje: "Esta categoria ya existe" });
+        return res.status(400).json({ mensaje: "Esta categoria ya existe" });
       } else {
         // Si el nombre no existe, realizar la inserción
-        const insertQuery = `INSERT INTO Categoria (NombreCategoria) VALUES (@NombreCategoria)`;
+        const insertQuery = `INSERT INTO Categorias (Nombre) VALUES (@Nombre)`;
 
         const request = connection.request();
-        request.input("NombreCategoria", sql.VarChar, nombreCategoria);
+        request.input("Nombre", sql.VarChar, nombreCategoria);
 
         request.query(insertQuery, (err, result) => {
           if (err) {
@@ -104,40 +257,138 @@ app.post("/api/CrearCategoria", (req, res) => {
           }
 
           connection.close();
-          res
-            .status(201)
-            .json({ mensaje: "Categoria creada correctamente" });
-          console.log(
-            `Categoria: ${nombreCategoria}, creada correctamente`
-          );
+          res.status(201).json({ mensaje: "Categoria creada correctamente" });
+          // console.log(`Categoria: ${nombreCategoria}, creada correctamente`);
         });
       }
     });
   });
 });
 
-app.delete('/api/DeleteCategoria/:id', async (req, res) => {
+// app.delete("/api/DeleteCategoria/:id", async (req, res) => {
+//   const { id } = req.params;
+//   // console.log("el id es: " + id);
 
+//   try {
+//     // Crear una nueva conexión
+//     const connection = await sql.connect(dbConfig);
+
+//     // Eliminar el proveedor directamente sin verificar referencias
+//     const deleteQuery = `DELETE FROM Categorias WHERE IdCategoria = ${id}`;
+//     await connection.query(deleteQuery);
+
+//     await connection.close();
+//     res.status(201).json({ mensaje: "Categoria eliminada correctamente" });
+//   } catch (err) {
+//     console.error("Error al eliminar la categoria:", err);
+//     res.status(500).json({ mensaje: "Error interno del servidor" });
+//   }
+// });
+app.delete("/api/DeleteCategoria/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Crear una nueva conexión
     const connection = await sql.connect(dbConfig);
 
-    // Eliminar el proveedor directamente sin verificar referencias
-    const deleteQuery = `DELETE FROM Categoria WHERE CategoriaID = ${id}`;
+    const deleteQuery = `DELETE FROM Categorias WHERE IdCategoria = ${id}`;
     await connection.query(deleteQuery);
 
     await connection.close();
-    res.status(201).json({ mensaje: 'Categoria eliminada correctamente' });
-  } catch (err) {
-    console.error('Error al eliminar la categoria:', err);
-    res.status(500).json({ mensaje: 'Error interno del servidor' });
-  }
+    res.status(201).json({ mensaje: "Categoría eliminada correctamente" });
+  } catch (error) {
+    if (error.number === 547) {
+      // Error de conflicto de clave foránea
+      return res.status(400).json({
+        mensaje: "No se puede eliminar esta categoría porque existe registro.",
+        referencia: true,
+      });
+    }
 
+    console.error("Error al eliminar la categoria:", error);
+    res.status(500).json({ mensaje: "Error interno del servidor" });
+  }
 });
 
-app.put('/api/EditCategoria/:id', async (req, res) => {
+// app.delete("/api/DeleteCategoria/:nombre", (req, res) => {
+//   const { nombre } = req.params;
+
+//   const connection = new sql.ConnectionPool(dbConfig);
+
+//   connection.connect((err) => {
+//     if (err) {
+//       console.log(err);
+//       return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
+//     }
+
+//     const checkReferencesQuery = `
+//       SELECT TOP 1 1
+//       FROM Productos
+//       WHERE Categoria = '${nombre}'
+//     `;
+
+//     connection.request().query(checkReferencesQuery, (err, result) => {
+//       if (err) {
+//         console.log(err);
+//         connection.close();
+//         return res.status(500).json({ mensaje: "Error en el query" });
+//       }
+
+//       if (result.recordset.length > 0) {
+//         connection.close();
+//         return res.status(400).json({
+//           mensaje:
+//             "No se puede eliminar esta categoría porque existe registro.",
+//           referencia: true,
+//         });
+//       }
+
+//       const deleteQuery = `DELETE FROM Categorias WHERE Nombre = '${nombre}'`;
+
+//       connection.request().query(deleteQuery, (err, result) => {
+//         if (err) {
+//           console.log(err);
+//           connection.close();
+//           return res
+//             .status(500)
+//             .json({ mensaje: "Error al eliminar la categoría" });
+//         }
+
+//         connection.close();
+//         res.status(201).json({ mensaje: "Categoría eliminada correctamente" });
+//       });
+//     });
+//   });
+// });
+
+// app.put("/api/EditCategoria/:id", async (req, res) => {
+//   const { id } = req.params;
+//   const { nombreCategoria } = req.body;
+
+//   try {
+//     // Crear una nueva conexión
+//     const connection = await sql.connect(dbConfig);
+
+//     // Consulta SQL para actualizar el nombre de la categoría
+//     const updateQuery = `
+//       UPDATE Categorias
+//       SET Nombre = '${nombreCategoria}'
+//       WHERE IdCategoria = ${id}
+//     `;
+
+//     // Ejecutar la consulta de actualización
+//     await connection.query(updateQuery);
+
+//     await connection.close();
+//     res
+//       .status(200)
+//       .json({ mensaje: "Nombre de categoría actualizado correctamente" });
+//   } catch (err) {
+//     console.error("Error al editar el nombre de la categoría:", err);
+//     res.status(500).json({ mensaje: "Error interno del servidor" });
+//   }
+// });
+
+app.put("/api/EditCategoria/:id", async (req, res) => {
   const { id } = req.params;
   const { nombreCategoria } = req.body;
 
@@ -147,19 +398,30 @@ app.put('/api/EditCategoria/:id', async (req, res) => {
 
     // Consulta SQL para actualizar el nombre de la categoría
     const updateQuery = `
-      UPDATE Categoria
-      SET NombreCategoria = '${nombreCategoria}'
-      WHERE CategoriaID = ${id}
+      UPDATE Categorias
+      SET Nombre = '${nombreCategoria}'
+      WHERE IdCategoria = ${id}
     `;
 
     // Ejecutar la consulta de actualización
     await connection.query(updateQuery);
 
     await connection.close();
-    res.status(200).json({ mensaje: 'Nombre de categoría actualizado correctamente' });
+    res
+      .status(200)
+      .json({ mensaje: "Nombre de categoría actualizado correctamente" });
   } catch (err) {
-    console.error('Error al editar el nombre de la categoría:', err);
-    res.status(500).json({ mensaje: 'Error interno del servidor' });
+    if (err.number === 547) {
+      // Error de conflicto de clave foránea
+      return res.status(400).json({
+        mensaje:
+          "No se puede actualizar esta categoría porque existe registro asociado en la tabla Productos.",
+        referencia: true,
+      });
+    }
+
+    console.error("Error al editar el nombre de la categoría:", err);
+    res.status(500).json({ mensaje: "Error interno del servidor" });
   }
 });
 
@@ -178,15 +440,13 @@ app.get("/api/UnidadesMedida", async (req, res) => {
   }
 });
 
-app.get("/api/TiposTransaccion", async (req, res) => {
+app.get("/api/TiposEntrada", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
     const result = await pool
       .request()
-      .query(
-        "SELECT Id, Nombre FROM TiposDeTransaccion WHERE Nombre <> 'Compra'"
-      );
+      .query("SELECT Id, Nombre FROM TiposDeEntrada");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
@@ -196,15 +456,13 @@ app.get("/api/TiposTransaccion", async (req, res) => {
   }
 });
 
-app.get("/api/TiposTransaccionCompras", async (req, res) => {
+app.get("/api/TiposDeSalida", async (req, res) => {
   try {
     const pool = await sql.connect(dbConfig);
     // Realizamos la consulta para obtener todos los clientes
     const result = await pool
       .request()
-      .query(
-        "SELECT Id, Nombre FROM TiposDeTransaccion WHERE Nombre <> 'Venta'"
-      );
+      .query("SELECT Id, Nombre FROM TipoDeSalida");
     // El response va contener todos los datos que se obtuvieron de la BD
     res.send(result.recordset);
   } catch (error) {
@@ -468,7 +726,7 @@ app.delete("/api/DeleteProveedor/:id", (req, res) => {
         connection.close();
         return res.status(400).json({
           mensaje:
-            "No se puede eliminar este proveedor porque está referenciado en Compras.",
+            "No se puede eliminar este proveedor porque tiene registros.",
         });
       }
 
@@ -794,14 +1052,19 @@ app.post("/api/GenerarEntrada", async (req, res) => {
   const totalPagado = req.body.totalPagado;
   const vuelto = req.body.vuelto;
   const idProveedor = req.body.idProveedor;
+  const idEmpleado = req.body.idEmpleado;
   // const tipoTransaccion = req.body.tipoTransaccion;
   // const UnidadMedida = req.body.unidadMedida;
+  // console.log("compras:", compras);
+  // console.log("id del empleado:", idEmpleado);
+
+  // console.log("nombreEmpleado desde el body:", req.body.nombreEmpleado);
+  // console.log("idEmpleado desde el body:", req.body.idEmpleado);
 
   try {
     // Crear una nueva instancia de conexión a la base de datos
     const connection = await sql.connect(dbConfig);
     // Agregar logs para verificar los datos del frontend
-    // console.log("compras:", compras);
     // console.log("total Pagado:", totalPagado);
     // console.log("Cambio:", vuelto);
     // console.log(`Id del proveedor: ${idProveedor}`);
@@ -809,9 +1072,13 @@ app.post("/api/GenerarEntrada", async (req, res) => {
     const table = new sql.Table("ComprasType");
     table.create = true;
     table.columns.add("NombreProducto", sql.NVarChar(100), { nullable: false });
+    table.columns.add("NombreEmpleado", sql.NVarChar(100), {
+      nullable: false,
+    });
     table.columns.add("NombreProveedor", sql.NVarChar(100), {
       nullable: false,
     });
+
     table.columns.add("Cantidad", sql.Decimal(10, 2), { nullable: false });
     table.columns.add("Precio", sql.Decimal(10, 2), { nullable: false });
     table.columns.add("Descuento", sql.Decimal(10, 2), { nullable: false });
@@ -823,14 +1090,16 @@ app.post("/api/GenerarEntrada", async (req, res) => {
     table.columns.add("UnidadDeMedida", sql.NVarChar(100), {
       nullable: false,
     }); // Agrega la columna UnidadDeMedidaID
-    table.columns.add("TipoTransaccion", sql.NVarChar(100), {
+    table.columns.add("TipoEntrada", sql.NVarChar(100), {
       nullable: false,
     }); // Agrega la columna TipoTransaccionID
     table.columns.add("IdProveedor", sql.Int, { nullable: false });
+    table.columns.add("IdEmpleado", sql.Int, { nullable: false });
 
     compras.forEach((compra) => {
       table.rows.add(
         compra.nombre,
+        req.body.nombreEmpleado,
         req.body.nombreProveedor,
         compra.cantidad,
         compra.precio,
@@ -842,8 +1111,9 @@ app.post("/api/GenerarEntrada", async (req, res) => {
         req.body.vuelto,
         compra.UnidadDeMedida, // Agrega unidad de medida
 
-        compra.tipoTransaccion, // Agrega tipo de transacción
-        req.body.idProveedor
+        compra.tipoEntrada, // Agrega tipo de transacción
+        req.body.idProveedor,
+        req.body.idEmpleado
       );
     });
 
@@ -852,6 +1122,7 @@ app.post("/api/GenerarEntrada", async (req, res) => {
     request.input("TotalPagado", totalPagado);
     request.input("Vuelto", vuelto);
     request.input("IdProveedor", idProveedor);
+    request.input("IdEmpleado", idEmpleado);
     // request.input("UnidadDeMedida", sql.NVarChar(100), UnidadMedida); // Reemplaza "Cajas" con el valor real desde tu objeto de ventas
     // request.input("TipoTransaccion", sql.NVarChar(100), tipoTransaccion); // Reemplaza "Venta" con el valor real desde tu objeto de ventas
     const result = await request.execute("RegistrarCompra");
@@ -885,6 +1156,7 @@ app.post("/api/GenerarSalida", async (req, res) => {
   const totalPagado = req.body.totalPagado;
   const vuelto = req.body.vuelto;
   const idCliente = req.body.idCliente;
+  const idEmpleado = req.body.idEmpleado;
   // const tipoTransaccion = req.body.tipoTransaccion;
   // const UnidadMedida = req.body.unidadMedida;
 
@@ -896,12 +1168,13 @@ app.post("/api/GenerarSalida", async (req, res) => {
     // console.log("total Pagado:", totalPagado);
     // console.log("Cambio:", vuelto);
     // console.log("tipo de venta", tipoTransaccion);
-    console.log(`el id del cliente es:${idCliente}`);
+    // console.log(`el id del cliente es:${idEmpleado}`);
 
     const table = new sql.Table("VentasType");
     table.create = true;
     table.columns.add("NombreProducto", sql.NVarChar(100), { nullable: false });
     table.columns.add("NombreCliente", sql.NVarChar(100), { nullable: false });
+    table.columns.add("NombreEmpleado", sql.NVarChar(100), { nullable: false });
     table.columns.add("Cantidad", sql.Decimal(10, 2), { nullable: false });
     table.columns.add("Precio", sql.Decimal(10, 2), { nullable: false });
     table.columns.add("Descuento", sql.Decimal(10, 2), { nullable: false });
@@ -917,12 +1190,13 @@ app.post("/api/GenerarSalida", async (req, res) => {
       nullable: false,
     }); // Agrega la columna TipoTransaccionID
     table.columns.add("IdCliente", sql.Int, { nullable: false }); // Agregar el campo IdCliente
-
+    table.columns.add("IdEmpleado", sql.Int, { nullable: false });
     ventas.forEach((venta) => {
       // console.log("Unidad de Medida existe?:", venta.UnidadDeMedida); // Agrega este log
       table.rows.add(
         venta.nombre,
         req.body.nombreCliente,
+        req.body.nombreEmpleado,
         venta.cantidad,
         venta.precio,
         venta.descuento,
@@ -934,7 +1208,8 @@ app.post("/api/GenerarSalida", async (req, res) => {
         venta.UnidadDeMedida, // Agrega unidad de medida
 
         venta.tipoTransaccion, // Agrega tipo de transacción
-        req.body.idCliente
+        req.body.idCliente,
+        req.body.idEmpleado
       );
     });
 
@@ -943,6 +1218,7 @@ app.post("/api/GenerarSalida", async (req, res) => {
     request.input("TotalPagado", totalPagado);
     request.input("Vuelto", vuelto);
     request.input("IdCliente", idCliente);
+    request.input("IdEmpleado", idEmpleado);
     // request.input("UnidadDeMedida", sql.NVarChar(100), UnidadMedida); // Reemplaza "Cajas" con el valor real desde tu objeto de ventas
     // request.input("TipoTransaccion", sql.NVarChar(100), tipoTransaccion); // Reemplaza "Venta" con el valor real desde tu objeto de ventas
 
@@ -1119,7 +1395,7 @@ app.post("/api/reporte-ventas", async (req, res) => {
     const query = `
       
 
-    SELECT Codigo, Fecha, Cliente, Vendedor, Total 
+    SELECT Codigo, Fecha, Cliente, Empleado, Total 
     FROM Ventas
       WHERE Fecha >= @fechaInicial AND Fecha <= @fechaFinal;
     `;
@@ -1168,7 +1444,7 @@ app.post("/api/reporte-compras", async (req, res) => {
     const query = `
       
 
-    SELECT Codigo, Fecha, Comprador, Proveedor, Total 
+    SELECT Codigo, Fecha, Empleado, Proveedor, Total 
     FROM Compras
       WHERE Fecha >= @fechaInicial AND Fecha <= @fechaFinal;
     `;
@@ -1614,25 +1890,10 @@ app.put("/api/ActualizarUnidadDeMedida/:id", async (req, res) => {
   }
 });
 
-// CRUD TRANSACCIONES
-
-app.get("/api/TiposDeTransacciones", async (req, res) => {
-  try {
-    const pool = await sql.connect(dbConfig);
-
-    const result = await pool
-      .request()
-      .query("SELECT * FROM TiposDeTransaccion");
-
-    res.send(result.recordset);
-  } catch (error) {
-    console.error("Error al obtener tipos de transacciones", error);
-    res.status(500).send("Error del servidor");
-  }
-});
+// CRUD TIPO DE ENTRADA Y SALIDA
 
 //!
-app.post("/api/CrearTipoDeTransaccion", (req, res) => {
+app.post("/api/CrearTipoDeEntrada", (req, res) => {
   const { nombreTransaccion } = req.body;
 
   const connection = new sql.ConnectionPool(dbConfig);
@@ -1646,7 +1907,7 @@ app.post("/api/CrearTipoDeTransaccion", (req, res) => {
     }
 
     // Verificar si el nombre ya existe
-    const checkQuery = `SELECT COUNT(*) as count FROM TiposDeTransaccion WHERE Nombre = @nombreTransaccion`;
+    const checkQuery = `SELECT COUNT(*) as count FROM TiposDeEntrada WHERE Nombre = @nombreTransaccion`;
 
     const request = connection.request();
     request.input("nombreTransaccion", sql.VarChar, nombreTransaccion);
@@ -1668,7 +1929,7 @@ app.post("/api/CrearTipoDeTransaccion", (req, res) => {
       }
 
       // Si el nombre no existe, realizar la inserción
-      const insertQuery = `INSERT INTO TiposDeTransaccion (Nombre) VALUES (@nombreTransaccion)`;
+      const insertQuery = `INSERT INTO TiposDeEntrada (Nombre) VALUES (@nombreTransaccion)`;
 
       const request = connection.request();
       request.input("nombreTransaccion", sql.VarChar, nombreTransaccion);
@@ -1685,7 +1946,7 @@ app.post("/api/CrearTipoDeTransaccion", (req, res) => {
         connection.close();
         res
           .status(201)
-          .json({ mensaje: "Tipo de transaccion creada correctamente" });
+          .json({ mensaje: "Tipo de entrada creada correctamente" });
         // console.log(
         //   `Tipo de transaccion: ${nombreTransaccion}, creada correctamente`
         // );
@@ -1695,51 +1956,94 @@ app.post("/api/CrearTipoDeTransaccion", (req, res) => {
 });
 
 //!
-app.put("/api/ActualizarTiposDeTransaccion/:id", async (req, res) => {
+// app.put("/api/ActualizarTiposDeEntrada/:id", async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { nombreTransaccion } = req.body;
+//     // console.log(`veremos ${nombreTransaccion}`);
+
+//     const pool = await sql.connect(dbConfig);
+
+//     const queryTipoDeTransaccion =
+//       "SELECT * FROM TiposDeEntrada WHERE ID = @ID";
+//     const resultTipoDeTransaccion = await pool
+//       .request()
+//       .input("ID", id)
+//       .query(queryTipoDeTransaccion);
+//     const transaccionActual = resultTipoDeTransaccion.recordset[0];
+
+//     const nombreActual = nombreTransaccion || transaccionActual.Nombre;
+
+//     const queryActualizar =
+//       "UPDATE TiposDeEntrada SET Nombre = @Nombre WHERE ID = @ID";
+//     const resultActualizar = await pool
+//       .request()
+//       .input("ID", id)
+//       .input("Nombre", nombreActual)
+//       .query(queryActualizar);
+
+//     res.json({ message: "Tipo De Entrada actualizada correctamente" });
+//   } catch (error) {
+//     // Verificar si el error es debido a una restricción de clave foránea
+//     if (error.number === 547) {
+//       // Restricción de clave foránea violada
+//       return res.status(400).json({
+//         mensaje:
+//           "No se puede actualizar el tipo de Entrada porque existe registros.",
+//       });
+//     } else {
+//       // Otro tipo de error
+//       console.error("Error al actualizar el tipo de entrada:", error);
+//       return res.status(500).send("Error del servidor");
+//     }
+//   }
+// });
+app.put("/api/ActualizarTiposDeEntrada/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { nombreTransaccion } = req.body;
-    // console.log(`veremos ${nombreTransaccion}`);
 
     const pool = await sql.connect(dbConfig);
 
-    const queryTipoDeTransaccion =
-      "SELECT * FROM TiposDeTransaccion WHERE ID = @ID";
-    const resultTipoDeTransaccion = await pool
+    // Verificar si el nuevo nombre ya existe
+    const checkQuery = `SELECT COUNT(*) as count FROM TiposDeEntrada WHERE Nombre = @nombreTransaccion AND ID <> @ID`;
+
+    const checkResult = await pool
       .request()
+      .input("nombreTransaccion", sql.VarChar, nombreTransaccion)
       .input("ID", id)
-      .query(queryTipoDeTransaccion);
-    const transaccionActual = resultTipoDeTransaccion.recordset[0];
+      .query(checkQuery);
 
-    const nombreActual = nombreTransaccion || transaccionActual.Nombre;
+    if (checkResult.recordset[0].count > 0) {
+      return res.status(400).json({
+        mensaje: "Este tipo de Transacción ya existe",
+      });
+    }
 
+    // Continuar con la actualización si el nombre no existe
     const queryActualizar =
-      "UPDATE TiposDeTransaccion SET Nombre = @Nombre WHERE ID = @ID";
+      "UPDATE TiposDeEntrada SET Nombre = @Nombre WHERE ID = @ID";
     const resultActualizar = await pool
       .request()
       .input("ID", id)
-      .input("Nombre", nombreActual)
+      .input("Nombre", nombreTransaccion)
       .query(queryActualizar);
 
-    res.json({ message: "Tipo De Transaccion actualizada correctamente" });
+    res.json({ message: "Tipo De Entrada actualizada correctamente" });
   } catch (error) {
-    // Verificar si el error es debido a una restricción de clave foránea
     if (error.number === 547) {
-      // Restricción de clave foránea violada
       return res.status(400).json({
         mensaje:
-          "No se puede actualizar el tipo de transacción porque está siendo referenciado en DetalleCompras o DetalleVentas.",
+          "No se puede actualizar el tipo de Entrada porque existen registros asociados.",
       });
     } else {
-      // Otro tipo de error
-      console.error("Error al actualizar el tipo de transaccion:", error);
+      console.error("Error al actualizar el tipo de entrada:", error);
       return res.status(500).send("Error del servidor");
     }
   }
 });
 
-
-app.delete("/api/DeleteTipoDeTransaccion/:nombre", (req, res) => {
+app.delete("/api/DeleteTipoDeEntrada/:nombre", (req, res) => {
   const { nombre } = req.params;
 
   const connection = new sql.ConnectionPool(dbConfig);
@@ -1752,12 +2056,8 @@ app.delete("/api/DeleteTipoDeTransaccion/:nombre", (req, res) => {
 
     const checkReferencesQuery = `
       SELECT TOP 1 1
-      FROM DetalleVentas
-      WHERE TipoTransaccion = '${nombre}'
-      UNION ALL
-      SELECT TOP 1 1
       FROM DetalleCompras
-      WHERE TipoTransaccion = '${nombre}'
+      WHERE TipoEntrada = '${nombre}'
     `;
 
     connection.request().query(checkReferencesQuery, (err, result) => {
@@ -1771,11 +2071,11 @@ app.delete("/api/DeleteTipoDeTransaccion/:nombre", (req, res) => {
         connection.close();
         return res.status(400).json({
           mensaje:
-            "No se puede eliminar este tipo de transacción porque está referenciado en DetalleVentas o DetalleCompras.",
+            "No se puede eliminar este tipo de entrada porque existen registros.",
         });
       }
 
-      const deleteQuery = `DELETE FROM TiposDeTransaccion WHERE Nombre = '${nombre}'`;
+      const deleteQuery = `DELETE FROM TiposDeEntrada WHERE Nombre = '${nombre}'`;
 
       connection.request().query(deleteQuery, (err, result) => {
         if (err) {
@@ -1783,13 +2083,172 @@ app.delete("/api/DeleteTipoDeTransaccion/:nombre", (req, res) => {
           connection.close();
           return res
             .status(500)
-            .json({ mensaje: "Error al eliminar el tipo de transacción" });
+            .json({ mensaje: "Error al eliminar el tipo de entrada" });
         }
 
         connection.close();
         res
           .status(201)
-          .json({ mensaje: "Tipo de transacción eliminada correctamente" });
+          .json({ mensaje: "Tipo de entrada eliminada correctamente" });
+      });
+    });
+  });
+});
+
+app.post("/api/CrearTipoDeSalida", (req, res) => {
+  const { nombreTransaccion } = req.body;
+  // console.log(nombreTransaccion);
+
+  const connection = new sql.ConnectionPool(dbConfig);
+
+  connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res
+        .status(500)
+        .json({ mensaje: "Error interno del servidor 1 - Conexion BD" });
+    }
+
+    // Verificar si el nombre ya existe
+    const checkQuery = `SELECT COUNT(*) as count FROM TipoDeSalida WHERE Nombre = @nombreTransaccion`;
+
+    const request = connection.request();
+    request.input("nombreTransaccion", sql.VarChar, nombreTransaccion);
+
+    request.query(checkQuery, (err, result) => {
+      if (err) {
+        console.log(err);
+        connection.close();
+        return res.status(500).json({
+          mensaje: "Error interno del servidor 2 - Verificación de nombre",
+        });
+      }
+
+      if (result.recordset[0].count > 0) {
+        connection.close();
+        return res
+          .status(400)
+          .json({ mensaje: "Este tipo de Salida ya existe" });
+      }
+
+      // Si el nombre no existe, realizar la inserción
+      const insertQuery = `INSERT INTO TipoDeSalida (Nombre) VALUES (@nombreTransaccion)`;
+
+      const request = connection.request();
+      request.input("nombreTransaccion", sql.VarChar, nombreTransaccion);
+
+      request.query(insertQuery, (err, result) => {
+        if (err) {
+          console.log(err);
+          connection.close();
+          return res
+            .status(500)
+            .json({ mensaje: "Error interno del servidor 3 - En el query" });
+        }
+
+        connection.close();
+        res
+          .status(201)
+          .json({ mensaje: "Tipo de salida creada correctamente" });
+        // console.log(
+        //   `Tipo de transaccion: ${nombreTransaccion}, creada correctamente`
+        // );
+      });
+    });
+  });
+});
+app.put("/api/ActualizarTiposDeSalida/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombreTransaccion } = req.body;
+
+    const pool = await sql.connect(dbConfig);
+
+    // Verificar si el nuevo nombre ya existe
+    const checkQuery = `SELECT COUNT(*) as count FROM TiposDeEntrada WHERE Nombre = @nombreTransaccion AND ID <> @ID`;
+
+    const checkResult = await pool
+      .request()
+      .input("nombreTransaccion", sql.VarChar, nombreTransaccion)
+      .input("ID", id)
+      .query(checkQuery);
+
+    if (checkResult.recordset[0].count > 0) {
+      return res.status(400).json({
+        mensaje: "Este tipo de Transacción ya existe",
+      });
+    }
+
+    // Continuar con la actualización si el nombre no existe
+    const queryActualizar =
+      "UPDATE TipoDeSalida SET Nombre = @Nombre WHERE ID = @ID";
+    const resultActualizar = await pool
+      .request()
+      .input("ID", id)
+      .input("Nombre", nombreTransaccion)
+      .query(queryActualizar);
+
+    res.json({ message: "Tipo De Salida actualizada correctamente" });
+  } catch (error) {
+    if (error.number === 547) {
+      return res.status(400).json({
+        mensaje:
+          "No se puede actualizar el tipo de Salida porque existen registros asociados.",
+      });
+    } else {
+      console.error("Error al actualizar el tipo de salida:", error);
+      return res.status(500).send("Error del servidor");
+    }
+  }
+});
+
+app.delete("/api/DeleteTipoDeSalida/:nombre", (req, res) => {
+  const { nombre } = req.params;
+
+  const connection = new sql.ConnectionPool(dbConfig);
+
+  connection.connect((err) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ mensaje: "Error al conectarse a la BD" });
+    }
+
+    const checkReferencesQuery = `
+    SELECT TOP 1 1
+    FROM DetalleVentas
+    WHERE TipoSalida = '${nombre}'
+`;
+
+    connection.request().query(checkReferencesQuery, (err, result) => {
+      if (err) {
+        console.log(err);
+        connection.close();
+        return res.status(500).json({ mensaje: "Error en el query" });
+      }
+
+      if (result.recordset.length > 0) {
+        connection.close();
+        return res.status(400).json({
+          mensaje:
+            "No se puede eliminar este tipo de salida porque existen registros.",
+        });
+      }
+
+      const deleteQuery = `DELETE FROM TipoDeSalida WHERE Nombre = '${nombre}'`;
+
+      connection.request().query(deleteQuery, (err, result) => {
+        if (err) {
+          console.log(err);
+          connection.close();
+          return res
+            .status(500)
+            .json({ mensaje: "Error al eliminar el tipo de entrada" });
+        }
+
+        connection.close();
+        res
+          .status(201)
+          .json({ mensaje: "Tipo de SALIDA eliminada correctamente" });
       });
     });
   });
@@ -1865,3 +2324,33 @@ ORDER BY
   }
 });
 
+app.get("/api/EmpleadosConVentas", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+
+    const empleadosResult = await pool
+      .request()
+      .query("SELECT * FROM Empleados");
+
+    const empleadosConVentas = await Promise.all(
+      empleadosResult.recordset.map(async (empleado) => {
+        const ventasResult = await pool
+          .request()
+          .input("IdEmpleado", sql.Int, empleado.IdEmpleado)
+          .query(
+            "SELECT COUNT(*) AS TotalVentas FROM Ventas WHERE IdEmpleado = @IdEmpleado"
+          );
+
+        return {
+          ...empleado,
+          Ventas: ventasResult.recordset[0].TotalVentas,
+        };
+      })
+    );
+
+    res.json(empleadosConVentas);
+  } catch (error) {
+    console.error("Error al obtener la lista de empleados con ventas:", error);
+    res.status(500).send("Error interno del servidor");
+  }
+});
