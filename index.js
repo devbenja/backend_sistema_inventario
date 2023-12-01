@@ -9,9 +9,9 @@ const port = 5000;
 // Configuración de conexión a SQL Server
 const dbConfig = {
   server: "localhost",
-  database: "prueba2",
-  user: "sa",
-  password: "1234",
+  database: "BDSINFA",
+  user: "prueba",
+  password: "123",
   trustServerCertificate: true,
   options: {
     trustedConnection: true,
@@ -1353,6 +1353,22 @@ app.get("/api/CantidadClientes", async (req, res) => {
   } catch (error) {
     // Caso contrario nos manda el error del porque no se puede
     console.error("Error al obtener total de Clientes:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
+
+app.get("/api/CantidadProveedores", async (req, res) => {
+  try {
+    const pool = await sql.connect(dbConfig);
+    // Realizamos la consulta para obtener todos los clientes
+    const result = await pool
+      .request()
+      .query("SELECT COUNT(*) AS TotalProveedores FROM Proveedores;");
+    // El response va contener todos los datos que se obtuvieron de la BD
+    res.send(result.recordset);
+  } catch (error) {
+    // Caso contrario nos manda el error del porque no se puede
+    console.error("Error al obtener total de proveedores:", error);
     res.status(500).send("Error del servidor");
   }
 });
