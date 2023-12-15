@@ -9,9 +9,9 @@ const port = 5000;
 // Configuración de conexión a SQL Server
 const dbConfig = {
   server: "localhost",
-  database: "BDSINFA",
-  user: "prueba",
-  password: "123",
+  database: "prueba2",
+  user: "sa",
+  password: "1234",
   trustServerCertificate: true,
   options: {
     trustedConnection: true,
@@ -1665,11 +1665,80 @@ app.delete("/api/EliminarVenta/:ventaId", async (req, res) => {
   }
 });
 
+// app.delete("/api/EliminarCompra/:compraId", async (req, res) => {
+//   const compraId = req.params.compraId;
+
+//   try {
+//     const pool = await sql.connect(dbConfig);
+//     await pool.request().input("CompraId", sql.Int, compraId).query(`
+//       BEGIN TRANSACTION;
+//       -- Obtener los detalles de la compra para devolver la cantidad al stock
+//       DECLARE @Detalles AS dbo.ComprasType;
+//       INSERT INTO @Detalles (NombreProducto, Cantidad)
+//       SELECT Producto, Cantidad
+//       FROM DetalleCompras
+//       WHERE IdCompra = @CompraId;
+
+//       -- Eliminar la compra
+//       DELETE FROM Compras WHERE Codigo = @CompraId;
+//       -- Eliminar los detalles de la compra
+//       DELETE FROM DetalleCompras WHERE IdCompra = @CompraId;
+
+//       -- Devolver la cantidad al stock del producto
+//       UPDATE Productos
+//       SET Stock = Stock - d.Cantidad
+//       FROM Productos p
+//       JOIN @Detalles d ON p.Nombre = d.NombreProducto;
+
+//       -- Devolver la cantidad al stock de inventario
+//       UPDATE Inventario
+//       SET Stock = Stock - d.Cantidad
+//       FROM Inventario i
+//       JOIN @Detalles d ON i.Nombre = d.NombreProducto;
+
+//       -- Actualizar la cantidad de entrada solo para los productos en @Detalles
+//       UPDATE Inventario
+//       SET CantidadEntrada = CantidadEntrada - d.Cantidad
+//       FROM Inventario i
+//       JOIN @Detalles d ON i.Nombre = d.NombreProducto;
+
+//       COMMIT TRANSACTION;
+//     `);
+
+//     res.sendStatus(200); // Enviar una respuesta 200 OK si todo fue exitoso
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ mensaje: "Error al eliminar la compra" });
+//   }
+// });
+
 app.delete("/api/EliminarCompra/:compraId", async (req, res) => {
   const compraId = req.params.compraId;
+  // console.log(compraId);
 
   try {
     const pool = await sql.connect(dbConfig);
+
+    // Verificar si el stock es negativo antes de realizar la eliminación
+    const result = await pool.request().input("CompraId", sql.Int, compraId)
+      .query(`
+      SELECT p.Nombre, p.Stock - ISNULL(SUM(dc.Cantidad), 0) AS StockActual
+      FROM Productos p
+      LEFT JOIN DetalleCompras dc ON p.Nombre = dc.Producto
+      WHERE dc.IdCompra = @CompraId
+      GROUP BY p.Nombre, p.Stock
+    `);
+
+    const productosConStockNegativo = result.recordset.filter(
+      (producto) => producto.StockActual < 0
+    );
+
+    if (productosConStockNegativo.length > 0) {
+      return res
+        .status(400)
+        .json({ mensaje: "No se puede eliminar la compra, stock negativo." });
+    }
+
     await pool.request().input("CompraId", sql.Int, compraId).query(`
       BEGIN TRANSACTION;
       -- Obtener los detalles de la compra para devolver la cantidad al stock
